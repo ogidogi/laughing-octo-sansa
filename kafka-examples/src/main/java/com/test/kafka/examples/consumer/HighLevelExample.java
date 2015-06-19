@@ -4,6 +4,9 @@ import kafka.consumer.ConsumerConfig;
 import kafka.consumer.ConsumerIterator;
 import kafka.consumer.KafkaStream;
 import kafka.javaapi.consumer.ConsumerConnector;
+import org.apache.commons.configuration.Configuration;
+import org.apache.commons.configuration.ConfigurationException;
+import org.apache.commons.configuration.PropertiesConfiguration;
 
 import java.util.HashMap;
 import java.util.List;
@@ -18,9 +21,33 @@ public class HighLevelExample {
     private final String topic;
     private ExecutorService executor;
 
-    public HighLevelExample(String a_zookeeper, String a_groupId, String a_topic) {
-        consumer = kafka.consumer.Consumer.createJavaConsumerConnector(createConsumerConfig(a_zookeeper, a_groupId));
-        this.topic = a_topic;
+    public HighLevelExample(Configuration conf) {
+        Properties props = new Properties();
+        props.put("zookeeper.connect", conf.getString("zookeeper.connect"));
+        props.put("group.id", conf.getString("consumer.group"));
+        props.put("zookeeper.session.timeout.ms", "400");
+        props.put("zookeeper.sync.time.ms", "200");
+        props.put("auto.commit.interval.ms", "1000");
+
+        consumer = kafka.consumer.Consumer.createJavaConsumerConnector(new ConsumerConfig(props));
+        this.topic = conf.getString("consumer.topic");
+
+        System.out.println("topic = [" + this.topic + "]");
+    }
+
+    public static void main(String[] args) throws ConfigurationException {
+        //int threads = Integer.parseInt(args[3]);
+        int threads = 10;
+
+        HighLevelExample example = new HighLevelExample(new PropertiesConfiguration("kafka.properties"));
+        example.run(threads);
+
+        try {
+            Thread.sleep(10000);
+        } catch (InterruptedException ie) {
+
+        }
+        example.shutdown();
     }
 
     public void shutdown() {
@@ -56,33 +83,6 @@ public class HighLevelExample {
         }
     }
 
-    private static ConsumerConfig createConsumerConfig(String a_zookeeper, String a_groupId) {
-        Properties props = new Properties();
-        props.put("zookeeper.connect", a_zookeeper);
-        props.put("group.id", a_groupId);
-        props.put("zookeeper.session.timeout.ms", "400");
-        props.put("zookeeper.sync.time.ms", "200");
-        props.put("auto.commit.interval.ms", "1000");
-
-        return new ConsumerConfig(props);
-    }
-
-    public static void main(String[] args) {
-        String zooKeeper = args[0];
-        String groupId = args[1];
-        String topic = args[2];
-        int threads = Integer.parseInt(args[3]);
-
-        HighLevelExample example = new HighLevelExample(zooKeeper, groupId, topic);
-        example.run(threads);
-
-        try {
-            Thread.sleep(10000);
-        } catch (InterruptedException ie) {
-
-        }
-        example.shutdown();
-    }
 
     class ConsumerTest implements Runnable {
         private KafkaStream<byte[], byte[]> m_stream;

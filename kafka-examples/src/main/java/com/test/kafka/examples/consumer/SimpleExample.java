@@ -19,30 +19,46 @@ import kafka.javaapi.TopicMetadataRequest;
 import kafka.javaapi.consumer.SimpleConsumer;
 import kafka.message.MessageAndOffset;
 
+import org.apache.commons.configuration.ConfigurationException;
+import org.apache.commons.configuration.PropertiesConfiguration;
+
+
 public class SimpleExample {
-    public static void main(String args[]) {
+    private String[] m_replicaBrokers;
+
+    public SimpleExample() {
+        m_replicaBrokers = new String[16];
+    }
+
+    public static void main(String args[]) throws ConfigurationException {
         SimpleExample example = new SimpleExample();
-        long maxReads = Long.parseLong(args[0]);
-        String topic = args[1];
-        int partition = Integer.parseInt(args[2]);
-        List<String> seeds = new ArrayList<String>();
-        seeds.add(args[3]);
-        int port = Integer.parseInt(args[4]);
+        PropertiesConfiguration conf = new PropertiesConfiguration("kafka.properties");
+
         try {
-            example.run(maxReads, topic, partition, seeds, port);
+            example.run(conf.getLong("consumer.maxreads"), conf.getString("consumer.topic"), conf.getInt("consumer.partition"), conf.getStringArray("consumer.servers"), conf.getInt("consumer.servers.port"));
         } catch (Exception e) {
             System.out.println("Oops:" + e);
             e.printStackTrace();
         }
     }
 
-    private List<String> m_replicaBrokers = new ArrayList<String>();
+    public static long getLastOffset(SimpleConsumer consumer, String topic, int partition, long whichTime, String clientName) {
+        TopicAndPartition topicAndPartition = new TopicAndPartition(topic, partition);
+        Map<TopicAndPartition, PartitionOffsetRequestInfo> requestInfo = new HashMap<TopicAndPartition, PartitionOffsetRequestInfo>();
+        requestInfo.put(topicAndPartition, new PartitionOffsetRequestInfo(whichTime, 1));
+        kafka.javaapi.OffsetRequest request = new kafka.javaapi.OffsetRequest(requestInfo, kafka.api.OffsetRequest.CurrentVersion(),
+                clientName);
+        OffsetResponse response = consumer.getOffsetsBefore(request);
 
-    public SimpleExample() {
-        m_replicaBrokers = new ArrayList<String>();
+        if (response.hasError()) {
+            System.out.println("Error fetching data Offset Data the Broker. Reason: " + response.errorCode(topic, partition));
+            return 0;
+        }
+        long[] offsets = response.offsets(topic, partition);
+        return offsets[0];
     }
 
-    public void run(long a_maxReads, String a_topic, int a_partition, List<String> a_seedBrokers, int a_port) throws Exception {
+    public void run(long a_maxReads, String a_topic, int a_partition, String[] a_seedBrokers, int a_port) throws Exception {
         // find the meta data about the topic and partition we are interested in
         //
         PartitionMetadata metadata = findLeader(a_seedBrokers, a_port, a_topic, a_partition);
@@ -66,7 +82,7 @@ public class SimpleExample {
                 consumer = new SimpleConsumer(leadBroker, a_port, 100000, 64 * 1024, clientName);
             }
             kafka.api.FetchRequest req = new FetchRequestBuilder().clientId(clientName).addFetch(a_topic, a_partition, readOffset, 100000) // Note: this fetchSize of 100000 might need to be increased
-                                                                                                                                           // if large
+                    // if large
                     // batches are written to Kafka
                     .build();
             FetchResponse fetchResponse = consumer.fetch(req);
@@ -118,22 +134,6 @@ public class SimpleExample {
             consumer.close();
     }
 
-    public static long getLastOffset(SimpleConsumer consumer, String topic, int partition, long whichTime, String clientName) {
-        TopicAndPartition topicAndPartition = new TopicAndPartition(topic, partition);
-        Map<TopicAndPartition, PartitionOffsetRequestInfo> requestInfo = new HashMap<TopicAndPartition, PartitionOffsetRequestInfo>();
-        requestInfo.put(topicAndPartition, new PartitionOffsetRequestInfo(whichTime, 1));
-        kafka.javaapi.OffsetRequest request = new kafka.javaapi.OffsetRequest(requestInfo, kafka.api.OffsetRequest.CurrentVersion(),
-                clientName);
-        OffsetResponse response = consumer.getOffsetsBefore(request);
-
-        if (response.hasError()) {
-            System.out.println("Error fetching data Offset Data the Broker. Reason: " + response.errorCode(topic, partition));
-            return 0;
-        }
-        long[] offsets = response.offsets(topic, partition);
-        return offsets[0];
-    }
-
     private String findNewLeader(String a_oldLeader, String a_topic, int a_partition, int a_port) throws Exception {
         for (int i = 0; i < 3; i++) {
             boolean goToSleep = false;
@@ -161,9 +161,10 @@ public class SimpleExample {
         throw new Exception("Unable to find new leader after Broker failure. Exiting");
     }
 
-    private PartitionMetadata findLeader(List<String> a_seedBrokers, int a_port, String a_topic, int a_partition) {
+    private PartitionMetadata findLeader(String[] a_seedBrokers, int a_port, String a_topic, int a_partition) {
         PartitionMetadata returnMetaData = null;
-        loop: for (String seed : a_seedBrokers) {
+        loop:
+        for (String seed : a_seedBrokers) {
             SimpleConsumer consumer = null;
             try {
                 consumer = new SimpleConsumer(seed, a_port, 100000, 64 * 1024, "leaderLookup");
@@ -189,9 +190,12 @@ public class SimpleExample {
             }
         }
         if (returnMetaData != null) {
-            m_replicaBrokers.clear();
+            //m_replicaBrokers.clear();
+            m_replicaBrokers = new String[16];
+            int i = 0;
             for (kafka.cluster.Broker replica : returnMetaData.replicas()) {
-                m_replicaBrokers.add(replica.host());
+                m_replicaBrokers[i] = replica.host();
+                i++;
             }
         }
         return returnMetaData;
