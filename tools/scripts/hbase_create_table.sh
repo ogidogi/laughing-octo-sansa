@@ -8,6 +8,11 @@ CONFIG_FILE=${CONFIG_DIR}/'hbase.properties'
 TBL_NAME=$(grep "table.name" $CONFIG_FILE | cut -d'=' -f 2 | tr -d '[[:space:]]')
 COL_FAMILY=$(grep "column.family" $CONFIG_FILE | cut -d'=' -f 2 | tr -d '[[:space:]]')
 
+# Alternative way, but it's not permitted to use dots in bash vars
+# CONF=${CONF:=$CONFIG_FILE}
+# if [ -f "${CONF}" ]; then . ${CONF}; fi
+# echo ${table_name}
+
 echo "Creating table [$TBL_NAME], family [$COL_FAMILY]"
 
 set +o errexit
