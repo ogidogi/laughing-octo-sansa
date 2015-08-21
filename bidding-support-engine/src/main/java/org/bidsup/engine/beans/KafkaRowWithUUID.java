@@ -4,11 +4,15 @@ import java.io.Serializable;
 import java.util.UUID;
 
 public class KafkaRowWithUUID implements Serializable {
+
+    private static final long serialVersionUID = 6751326992432311393L;
+
     private UUID key;
     private String value;
 
     // Remember to declare no-args constructor
-    public KafkaRowWithUUID() { }
+    public KafkaRowWithUUID() {
+    }
 
     public KafkaRowWithUUID(UUID key, String value) {
         this.key = key;
@@ -33,10 +37,7 @@ public class KafkaRowWithUUID implements Serializable {
 
     @Override
     public String toString() {
-        return "KafkaRowWithUUID{" +
-                "key=" + key +
-                ", value='" + value + '\'' +
-                '}';
+        return "KafkaRowWithUUID{" + "key=" + key + ", value='" + value + '\'' + '}';
     }
     // other methods, constructors, etc.
 }
