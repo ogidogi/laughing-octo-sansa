@@ -76,9 +76,9 @@
 
 		<!-- Cassandra -->
 		<dependency>
-		    <groupId>com.datastax.spark</groupId>
-		    <artifactId>spark-cassandra-connector-java_2.10</artifactId>
-		    <version>1.4.0-M3</version>
+			<groupId>com.datastax.spark</groupId>
+			<artifactId>spark-cassandra-connector-java_2.10</artifactId>
+			<version>1.4.0-M3</version>
 		</dependency>
 
 		<!-- Spark -->
@@ -106,6 +106,11 @@
 			<groupId>org.apache.spark</groupId>
 			<artifactId>spark-streaming-twitter_2.10</artifactId>
 			<version>1.4.1</version>
+		</dependency>
+		<dependency>
+			<groupId>com.restfb</groupId>
+			<artifactId>restfb</artifactId>
+			<version>1.14.0</version>
 		</dependency>
 	</dependencies>
 

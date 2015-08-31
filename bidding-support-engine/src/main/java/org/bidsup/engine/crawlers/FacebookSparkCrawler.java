@@ -8,23 +8,22 @@ import org.apache.log4j.Logger;
 import org.apache.spark.SparkConf;
 import org.apache.spark.streaming.Durations;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
-import org.apache.spark.streaming.twitter.TwitterUtils;
+import org.bidsup.engine.utils.FacebookUtils;
 
-import twitter4j.auth.Authorization;
-import twitter4j.auth.AuthorizationFactory;
-import twitter4j.conf.Configuration;
-import twitter4j.conf.ConfigurationContext;
+import com.restfb.Parameter;
+import com.restfb.batch.BatchRequest.BatchRequestBuilder;
 
-public class TwitterSparkCrawler {
+public class FacebookSparkCrawler {
 
-    private static final Logger log = Logger.getLogger(TwitterSparkCrawler.class);
+    private static final Logger log = Logger.getLogger(FacebookSparkCrawler.class);
 
     public static void main(String[] args) throws ConfigurationException {
-        TwitterSparkCrawler workflow = new TwitterSparkCrawler();
+        FacebookSparkCrawler workflow = new FacebookSparkCrawler();
         log.setLevel(Level.DEBUG);
 
         CompositeConfiguration conf = new CompositeConfiguration();
         conf.addConfiguration(new PropertiesConfiguration("spark.properties"));
+        conf.addConfiguration(new PropertiesConfiguration("facebook.properties"));
 
         try {
             workflow.run(conf);
@@ -40,14 +39,14 @@ public class TwitterSparkCrawler {
                 .set("spark.serializer", conf.getString("spark.serializer"));
         JavaStreamingContext jssc = new JavaStreamingContext(sparkConf, Durations.seconds(conf.getLong("stream.duration")));
 
-        // Twitter4J
-        // IMPORTANT: put keys in twitter4J.properties
-        Configuration twitterConf = ConfigurationContext.getInstance();
-        Authorization twitterAuth = AuthorizationFactory.getInstance(twitterConf);
+        // Create facebook stream
+        Parameter typeParam = Parameter.with("type", "event");
+        FacebookUtils
+                .createStream(jssc, conf.getString("access.token"),
+                        new BatchRequestBuilder[] {
+                                new BatchRequestBuilder("search").parameters(new Parameter[] { Parameter.with("q", "car"), typeParam }) })
+                .print();
 
-        // Create twitter stream
-        String[] filters = { "#Car" };
-        TwitterUtils.createStream(jssc, twitterAuth, filters).print();
         // Start the computation
         jssc.start();
         jssc.awaitTermination();
