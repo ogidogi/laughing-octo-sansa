@@ -11,6 +11,7 @@ import org.apache.spark.streaming.api.java.JavaStreamingContext;
 import org.bidsup.engine.utils.FacebookUtils;
 
 import com.restfb.Parameter;
+import com.restfb.batch.BatchRequest;
 import com.restfb.batch.BatchRequest.BatchRequestBuilder;
 
 public class FacebookSparkCrawler {
@@ -36,7 +37,8 @@ public class FacebookSparkCrawler {
     private void run(CompositeConfiguration conf) {
         // Spark conf
         SparkConf sparkConf = new SparkConf().setAppName("TwitterSparkCrawler").setMaster(conf.getString("spark.master"))
-                .set("spark.serializer", conf.getString("spark.serializer"));
+                .set("spark.serializer", conf.getString("spark.serializer"))
+                .registerKryoClasses(new Class<?>[] { Parameter.class, BatchRequestBuilder.class, BatchRequest.class });
         JavaStreamingContext jssc = new JavaStreamingContext(sparkConf, Durations.seconds(conf.getLong("stream.duration")));
 
         // Create facebook stream
