@@ -36,7 +36,7 @@ public class IpinyouParse {
         SparkConf conf = new SparkConf()
                 .setAppName("IpinyouParser")
                 .setMaster("local[4]")
-                .set("es.index.auto.create", "true")
+//                .set("es.index.auto.create", "true")
                 ;
         JavaSparkContext jsc = new JavaSparkContext(conf);
         SQLContext sqlContext = new SQLContext(jsc);
@@ -80,6 +80,7 @@ public class IpinyouParse {
         List<StructField> adExhangeFields = new ArrayList<StructField>();
         adExhangeFields.add(DataTypes.createStructField("ad_exchange", DataTypes.IntegerType, true));
         adExhangeFields.add(DataTypes.createStructField("ad_exchange_name", DataTypes.StringType, true));
+        adExhangeFields.add(DataTypes.createStructField("ad_exchange_desc", DataTypes.StringType, true));
 
         StructType adExhangeSchema = DataTypes.createStructType(adExhangeFields);
 
