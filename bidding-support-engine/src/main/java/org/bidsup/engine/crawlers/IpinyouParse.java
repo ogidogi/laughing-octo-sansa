@@ -12,7 +12,6 @@ import org.bidsup.engine.spark.sql.udf.ParseUserAgentString;
 import org.bidsup.engine.spark.sql.udf.ParseUserTagsArray;
 import org.elasticsearch.spark.rdd.api.java.JavaEsSpark;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -36,7 +35,7 @@ public class IpinyouParse {
 
         SparkConf conf = new SparkConf()
                 .setAppName("IpinyouParser")
-                .setMaster("local")
+                .setMaster("local[4]")
                 .set("es.index.auto.create", "true")
                 ;
         JavaSparkContext jsc = new JavaSparkContext(conf);
@@ -105,7 +104,7 @@ public class IpinyouParse {
         List<StructField> cityFields = new ArrayList<StructField>();
         cityFields.add(DataTypes.createStructField("city_id", DataTypes.IntegerType, true));
         cityFields.add(DataTypes.createStructField("city_name", DataTypes.StringType, true));
-        cityFields.add(DataTypes.createStructField("state id", DataTypes.IntegerType, true));
+        cityFields.add(DataTypes.createStructField("state_id", DataTypes.IntegerType, true));
         cityFields.add(DataTypes.createStructField("population", DataTypes.StringType, true));
         cityFields.add(DataTypes.createStructField("area", DataTypes.FloatType, true));
         cityFields.add(DataTypes.createStructField("density", DataTypes.FloatType, true));
@@ -143,9 +142,25 @@ public class IpinyouParse {
 
         StructType stateSchema = DataTypes.createStructType(stateFields);
 
-
         DataFrame stateDf = sqlContext.read().format("com.databricks.spark.csv").schema(stateSchema).option("header", "false").option("delimiter", "\t")
                 .load(Paths.get(dictDir, "states.us.txt").toString());
+
+        /*
+        User Tags Dict
+         */
+
+        List<StructField> userTagField = new ArrayList<StructField>();
+        userTagField.add(DataTypes.createStructField("keyword_id", DataTypes.IntegerType, true));
+        userTagField.add(DataTypes.createStructField("keyword_value", DataTypes.StringType, true));
+        userTagField.add(DataTypes.createStructField("keyword_status", DataTypes.StringType, true));
+        userTagField.add(DataTypes.createStructField("pricing_type", DataTypes.StringType, true));
+        userTagField.add(DataTypes.createStructField("keyword_match_type", DataTypes.StringType, true));
+
+        StructType userTagSchema = DataTypes.createStructType(userTagField);
+
+        DataFrame userTagDf = sqlContext.read().format("com.databricks.spark.csv").schema(stateSchema).option("header", "false").option("delimiter", "\t")
+                .load(Paths.get(dictDir, "user.profile.tags.us.txt").toString());
+
 
         Files.walk(Paths.get(filePath)).forEach(fileName -> {
             if (Files.isRegularFile(fileName)) {
@@ -159,16 +174,30 @@ public class IpinyouParse {
                         // Adx
                         .join(adExchangeDf, bidDf.col("ad_exchange").equalTo(adExchangeDf.col("ad_exchange")), "left")
                         .join(logTypeDf, bidDf.col("log_type").equalTo(logTypeDf.col("log_type_id")), "left")
-                        .join(cityDf, bidDf.col("city").equalTo(cityDf.col("city_id")), "right")    // src data is messed a bit, so geo_point results in null -> 'right' join is workaround
+                        .join(cityDf, bidDf.col("city").equalTo(cityDf.col("city_id")), "inner")    // src data is messed a bit, so geo_point results in null -> 'inner' join is workaround
 //                        .join(stateDf, bidDf.col("region").equalTo(stateDf.col("state_id")), "left")
+                        .join(stateDf, cityDf.col("state_id").equalTo(stateDf.col("state_id")), "left")
+//                        .join(userTagDf, bidDf.col("region").equalTo(stateDf.col("state_id")), "left")
 
                         .withColumn("user_tags_array", callUDF(new ParseUserTagsArray(), DataTypes.createArrayType(DataTypes.StringType), bidDf.col("user_tags")))
                         .withColumn("coordinates", callUDF(new ParseCoordinates(), DataTypes.createArrayType(DataTypes.FloatType), cityDf.col("latitude"), cityDf.col("longitude")))
                         // User Info
-                        .withColumn("user_agent_browser", callUDF(new ParseUserAgentString("browser"), DataTypes.StringType, bidDf.col("user_agent")))
-                        .withColumn("user_agent_browserVersion", callUDF(new ParseUserAgentString("browserVersion"), DataTypes.StringType, bidDf.col("user_agent")))
-                        .withColumn("user_agent_id", callUDF(new ParseUserAgentString("id"), DataTypes.StringType, bidDf.col("user_agent")))
-                        .withColumn("user_agent_OS", callUDF(new ParseUserAgentString("operatingSystem"), DataTypes.StringType, bidDf.col("user_agent")))
+                        // -- browser
+                        .withColumn("ua_browser", callUDF(new ParseUserAgentString("browser"), DataTypes.StringType, bidDf.col("user_agent")))
+                        .withColumn("ua_browser_group", callUDF(new ParseUserAgentString("browser.group"), DataTypes.StringType, bidDf.col("user_agent")))
+                        .withColumn("ua_browser_manufacturer", callUDF(new ParseUserAgentString("browser.manufacturer"), DataTypes.StringType, bidDf.col("user_agent")))
+                        .withColumn("ua_browser_rendering_engine", callUDF(new ParseUserAgentString("browser.rendering.engine"), DataTypes.StringType, bidDf.col("user_agent")))
+                        .withColumn("ua_browserVersion", callUDF(new ParseUserAgentString("browserVersion"), DataTypes.StringType, bidDf.col("user_agent")))
+                        .withColumn("ua_browserVersion_minor", callUDF(new ParseUserAgentString("browserVersion.minor"), DataTypes.StringType, bidDf.col("user_agent")))
+                        .withColumn("ua_browserVersion_major", callUDF(new ParseUserAgentString("browserVersion.major"), DataTypes.StringType, bidDf.col("user_agent")))
+                        // -- id
+                        .withColumn("ua_id", callUDF(new ParseUserAgentString("id"), DataTypes.StringType, bidDf.col("user_agent")))
+                        // -- OS
+                        .withColumn("ua_os", callUDF(new ParseUserAgentString("operatingSystem"), DataTypes.StringType, bidDf.col("user_agent")))
+                        .withColumn("ua_os_name", callUDF(new ParseUserAgentString("operatingSystem.name"), DataTypes.StringType, bidDf.col("user_agent")))
+                        .withColumn("ua_os_device", callUDF(new ParseUserAgentString("operatingSystem.device"), DataTypes.StringType, bidDf.col("user_agent")))
+                        .withColumn("ua_os_group", callUDF(new ParseUserAgentString("operatingSystem.group"), DataTypes.StringType, bidDf.col("user_agent")))
+                        .withColumn("ua_os_manufacturer", callUDF(new ParseUserAgentString("operatingSystem.manufacturer"), DataTypes.StringType, bidDf.col("user_agent")))
 
                         .drop(bidDf.col("ad_exchange"))
                         .drop(adExchangeDf.col("ad_exchange"))
@@ -176,10 +205,9 @@ public class IpinyouParse {
                         .drop(logTypeDf.col("log_type_id"))
                         .drop(bidDf.col("city"))
                         .drop(cityDf.col("city_id"))
-//                        .drop(bidDf.col("region"))
-//                        .drop(stateDf.col("state_id"))
-                        .drop(bidDf.col("user_tags"))
-                        ;
+                        .drop(cityDf.col("state_id"))
+                        .drop(stateDf.col("state_id"))
+                        .drop(bidDf.col("user_tags"));
 
 //                parsedBidDf.show();
 //                System.out.println(parsedBidDf.toJSON().toJavaRDD().take(10));
