@@ -114,6 +114,13 @@
 			<version>1.4.0-M3</version>
 		</dependency>
 
+		<!-- Kafka-->
+		<dependency>
+			<groupId>org.apache.kafka</groupId>
+			<artifactId>kafka_2.10</artifactId>
+			<version>0.8.2.1</version>
+		</dependency>
+
 		<!-- Spark -->
 		<dependency>
 			<groupId>org.apache.spark</groupId>
