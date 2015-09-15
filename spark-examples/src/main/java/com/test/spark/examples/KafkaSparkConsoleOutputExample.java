@@ -32,7 +32,7 @@ public class KafkaSparkConsoleOutputExample {
         JavaPairInputDStream<String, String> messages = KafkaUtils.createDirectStream(jssc, String.class, String.class,
                 StringDecoder.class, StringDecoder.class, kafkaParams, topicsSet);
 
-        final AtomicReference<OffsetRange[]> offsetRanges = new AtomicReference();
+        final AtomicReference<OffsetRange[]> offsetRanges = new AtomicReference<OffsetRange[]>();
 
         // Get the lines
         messages

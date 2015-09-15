@@ -1,6 +1,25 @@
 package org.bidsup.engine.consumers;
 
-import kafka.serializer.StringDecoder;
+import static org.apache.spark.sql.functions.callUDF;
+import static org.bidsup.engine.utils.MapperConstants.MappingSchemas.AD_EXCH_SCHEMA;
+import static org.bidsup.engine.utils.MapperConstants.MappingSchemas.BID_SCHEMA;
+import static org.bidsup.engine.utils.MapperConstants.MappingSchemas.CITY_SCHEMA;
+import static org.bidsup.engine.utils.MapperConstants.MappingSchemas.LOG_TYPE_SCHEMA;
+import static org.bidsup.engine.utils.MapperConstants.MappingSchemas.STATE_SCHEMA;
+import static org.bidsup.engine.utils.MapperConstants.SchemaFields.AD_EXCH_ID;
+import static org.bidsup.engine.utils.MapperConstants.SchemaFields.CITY_ID;
+import static org.bidsup.engine.utils.MapperConstants.SchemaFields.CITY_LATITUDE;
+import static org.bidsup.engine.utils.MapperConstants.SchemaFields.CITY_LONGITUDE;
+import static org.bidsup.engine.utils.MapperConstants.SchemaFields.LOG_TYPE_ID;
+import static org.bidsup.engine.utils.MapperConstants.SchemaFields.STATE_ID;
+import static org.bidsup.engine.utils.MapperConstants.SchemaFields.USER_AGENT;
+import static org.bidsup.engine.utils.MapperConstants.SchemaFields.USER_TAGS;
+
+import java.nio.file.Paths;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+
 import org.apache.commons.configuration.CompositeConfiguration;
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.configuration.PropertiesConfiguration;
@@ -11,8 +30,8 @@ import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.sql.DataFrame;
 import org.apache.spark.sql.Row;
-import org.apache.spark.sql.RowFactory;
 import org.apache.spark.sql.SQLContext;
+import org.apache.spark.sql.catalyst.expressions.GenericRow;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.streaming.Durations;
 import org.apache.spark.streaming.api.java.JavaPairInputDStream;
@@ -22,14 +41,7 @@ import org.bidsup.engine.spark.sql.udf.ParseCoordinates;
 import org.bidsup.engine.spark.sql.udf.ParseUserAgentString;
 import org.bidsup.engine.spark.sql.udf.ParseUserTagsArray;
 
-import java.nio.file.Paths;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
-
-import static org.apache.spark.sql.functions.callUDF;
-import static org.bidsup.engine.utils.MapperConstants.MappingSchemas.*;
-import static org.bidsup.engine.utils.MapperConstants.SchemaFields.*;
+import kafka.serializer.StringDecoder;
 
 public class KafkaSparkEsFlow {
     private static final Logger log = Logger.getLogger(KafkaSparkCassandraFlow.class);
@@ -79,7 +91,7 @@ public class KafkaSparkEsFlow {
                 .createDirectStream(jssc, String.class, String.class,
                         StringDecoder.class, StringDecoder.class, kafkaParams, topicsSet);
 
-        String esIndex = "rtb_test/log_item";
+        // String esIndex = "rtb_test/log_item";
         String dictDir = "/media/sf_Download/ipinyou/dicts/";
 
         messages.foreachRDD(rdd -> {
@@ -113,8 +125,7 @@ public class KafkaSparkEsFlow {
                     .option("delimiter", "\t")
                     .load(Paths.get(dictDir, "states.us.txt").toString());
 
-
-            JavaRDD<Row> rowRdd = rdd.map(x -> RowFactory.create(x._2().split("\t")));
+            JavaRDD<Row> rowRdd = rdd.map(x -> new GenericRow(x._2().split("\t")));
             DataFrame bidDf = sqlContext.createDataFrame(rowRdd, BID_SCHEMA.getSchema());
 
             bidDf.show();
