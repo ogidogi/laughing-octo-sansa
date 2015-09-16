@@ -94,7 +94,6 @@
 			<artifactId>elasticsearch</artifactId>
 			<version>1.7.2</version>
 		</dependency>
-
         <dependency>
             <groupId>org.elasticsearch</groupId>
             <artifactId>elasticsearch-spark_2.10</artifactId>
@@ -151,6 +150,8 @@
 			<artifactId>spark-sql_2.10</artifactId>
 			<version>1.5.0</version>
 		</dependency>
+
+		<!-- Utils-->
 		<dependency>
 			<groupId>com.restfb</groupId>
 			<artifactId>restfb</artifactId>

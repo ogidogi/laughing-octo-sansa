@@ -1,25 +1,6 @@
 package org.bidsup.engine.consumers;
 
-import static org.apache.spark.sql.functions.callUDF;
-import static org.bidsup.engine.utils.MapperConstants.MappingSchemas.AD_EXCH_SCHEMA;
-import static org.bidsup.engine.utils.MapperConstants.MappingSchemas.BID_SCHEMA;
-import static org.bidsup.engine.utils.MapperConstants.MappingSchemas.CITY_SCHEMA;
-import static org.bidsup.engine.utils.MapperConstants.MappingSchemas.LOG_TYPE_SCHEMA;
-import static org.bidsup.engine.utils.MapperConstants.MappingSchemas.STATE_SCHEMA;
-import static org.bidsup.engine.utils.MapperConstants.SchemaFields.AD_EXCH_ID;
-import static org.bidsup.engine.utils.MapperConstants.SchemaFields.CITY_ID;
-import static org.bidsup.engine.utils.MapperConstants.SchemaFields.CITY_LATITUDE;
-import static org.bidsup.engine.utils.MapperConstants.SchemaFields.CITY_LONGITUDE;
-import static org.bidsup.engine.utils.MapperConstants.SchemaFields.LOG_TYPE_ID;
-import static org.bidsup.engine.utils.MapperConstants.SchemaFields.STATE_ID;
-import static org.bidsup.engine.utils.MapperConstants.SchemaFields.USER_AGENT;
-import static org.bidsup.engine.utils.MapperConstants.SchemaFields.USER_TAGS;
-
-import java.nio.file.Paths;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
-
+import kafka.serializer.StringDecoder;
 import org.apache.commons.configuration.CompositeConfiguration;
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.configuration.PropertiesConfiguration;
@@ -30,9 +11,10 @@ import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.sql.DataFrame;
 import org.apache.spark.sql.Row;
+import org.apache.spark.sql.RowFactory;
 import org.apache.spark.sql.SQLContext;
-import org.apache.spark.sql.catalyst.expressions.GenericRow;
 import org.apache.spark.sql.types.DataTypes;
+import org.apache.spark.sql.types.StructType;
 import org.apache.spark.streaming.Durations;
 import org.apache.spark.streaming.api.java.JavaPairInputDStream;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
@@ -40,11 +22,21 @@ import org.apache.spark.streaming.kafka.KafkaUtils;
 import org.bidsup.engine.spark.sql.udf.ParseCoordinates;
 import org.bidsup.engine.spark.sql.udf.ParseUserAgentString;
 import org.bidsup.engine.spark.sql.udf.ParseUserTagsArray;
+import org.elasticsearch.spark.rdd.api.java.JavaEsSpark;
 
-import kafka.serializer.StringDecoder;
+import java.nio.file.Paths;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.stream.Collectors;
+
+import static org.apache.spark.sql.functions.callUDF;
+import static org.bidsup.engine.utils.MapperConstants.MappingSchemas.*;
+import static org.bidsup.engine.utils.MapperConstants.SchemaFields.*;
 
 public class KafkaSparkEsFlow {
-    private static final Logger log = Logger.getLogger(KafkaSparkCassandraFlow.class);
+    private static final Logger log = Logger.getLogger(KafkaSparkEsFlow.class);
+    private static final String dictDir = "/media/sf_Download/ipinyou/dicts/";
 
     public static void main(String[] args) throws ConfigurationException {
         KafkaSparkEsFlow workflow = new KafkaSparkEsFlow();
@@ -53,6 +45,7 @@ public class KafkaSparkEsFlow {
         CompositeConfiguration conf = new CompositeConfiguration();
         conf.addConfiguration(new PropertiesConfiguration("kafka.properties"));
         conf.addConfiguration(new PropertiesConfiguration("spark.properties"));
+        conf.addConfiguration(new PropertiesConfiguration("es.properties"));
 
         try {
             workflow.run(conf);
@@ -70,13 +63,18 @@ public class KafkaSparkEsFlow {
 
         // Spark props
         String sparkMaster = conf.getString("spark.master");
+        String sparkSerDe = conf.getString("spark.serializer");
         long sparkStreamDuration = conf.getLong("stream.duration");
+
+        // Es props
+        String esIndex = conf.getString("es.index");
+        String esIdxAutoCreate = conf.getString("es.index.auto.create");
 
         SparkConf sparkConf = new SparkConf()
                 .setAppName("Kafka Spark ES Flow with Java API")
                 .setMaster(sparkMaster)
-                .set("es.index.auto.create", "true")
-                ;
+                .set("es.index.auto.create", esIdxAutoCreate)
+                .set("spark.serializer", sparkSerDe);
 
         JavaSparkContext sp = new JavaSparkContext(sparkConf);
         JavaStreamingContext jssc = new JavaStreamingContext(sp, Durations.seconds(sparkStreamDuration));
@@ -90,9 +88,6 @@ public class KafkaSparkEsFlow {
         JavaPairInputDStream<String, String> messages = KafkaUtils
                 .createDirectStream(jssc, String.class, String.class,
                         StringDecoder.class, StringDecoder.class, kafkaParams, topicsSet);
-
-        // String esIndex = "rtb_test/log_item";
-        String dictDir = "/media/sf_Download/ipinyou/dicts/";
 
         messages.foreachRDD(rdd -> {
             SQLContext sqlContext = SQLContext.getOrCreate(rdd.context());
@@ -125,40 +120,50 @@ public class KafkaSparkEsFlow {
                     .option("delimiter", "\t")
                     .load(Paths.get(dictDir, "states.us.txt").toString());
 
-            JavaRDD<Row> rowRdd = rdd.map(x -> new GenericRow(x._2().split("\t")));
-            DataFrame bidDf = sqlContext.createDataFrame(rowRdd, BID_SCHEMA.getSchema());
+            JavaRDD<Row> rowRdd = rdd.map(x -> RowFactory.create(x._2().split("\t")));
 
-            bidDf.show();
+            // Workaround since there is no automatic type conversion between Row and DF
+            StructType kafkaStrSchema = DataTypes.createStructType(Arrays.stream(BID_SCHEMA.getSchema().fields())
+                    .map(field -> DataTypes.createStructField(field.name(), DataTypes.StringType, field.nullable()))
+                    .collect(Collectors.toList()));
+            DataFrame bidDf = sqlContext.createDataFrame(rowRdd, kafkaStrSchema);
+
 
             DataFrame parsedBidDf = bidDf
-                    .join(adExchangeDf, bidDf.col(AD_EXCH_ID.getStructField().name()).equalTo(adExchangeDf.col(AD_EXCH_ID.getStructField().name())), "left")
-                    .join(logTypeDf, bidDf.col(LOG_TYPE_ID.getStructField().name()).equalTo(logTypeDf.col(LOG_TYPE_ID.getStructField().name())), "left")
-                    .join(cityDf, bidDf.col(CITY_ID.getStructField().name()).equalTo(cityDf.col(CITY_ID.getStructField().name())), "inner")    // src data is messed a bit, so geo_point results in null -> 'inner' join is workaround
-                    .join(stateDf, cityDf.col(STATE_ID.getStructField().name()).equalTo(stateDf.col(STATE_ID.getStructField().name())), "left")
-                    .withColumn("user_tags_array", callUDF(new ParseUserTagsArray(), DataTypes.createArrayType(DataTypes.StringType), bidDf.col(USER_TAGS.getStructField().name())))
-                    .withColumn("coordinates", callUDF(new ParseCoordinates(), DataTypes.createArrayType(DataTypes.FloatType),
-                            cityDf.col(CITY_LATITUDE.getStructField().name()), cityDf.col(CITY_LONGITUDE.getStructField().name())))
-                            // User Info
-                            // -- browser
-                    .withColumn("ua_browser", callUDF(new ParseUserAgentString("browser"), DataTypes.StringType, bidDf.col(USER_AGENT.getStructField().name())))
-                    .withColumn("ua_browser_group", callUDF(new ParseUserAgentString("browser.group"), DataTypes.StringType, bidDf.col(USER_AGENT.getStructField().name())))
-                    .withColumn("ua_browser_manufacturer", callUDF(new ParseUserAgentString("browser.manufacturer"), DataTypes.StringType, bidDf.col(USER_AGENT.getStructField().name())))
-                    .withColumn("ua_browser_rendering_engine", callUDF(new ParseUserAgentString("browser.rendering.engine"), DataTypes.StringType, bidDf.col(USER_AGENT.getStructField().name())))
-                    .withColumn("ua_browserVersion", callUDF(new ParseUserAgentString("browserVersion"), DataTypes.StringType, bidDf.col(USER_AGENT.getStructField().name())))
-                    .withColumn("ua_browserVersion_minor", callUDF(new ParseUserAgentString("browserVersion.minor"), DataTypes.StringType, bidDf.col(USER_AGENT.getStructField().name())))
-                    .withColumn("ua_browserVersion_major", callUDF(new ParseUserAgentString("browserVersion.major"), DataTypes.StringType, bidDf.col(USER_AGENT.getStructField().name())))
-                            // -- id
-                    .withColumn("ua_id", callUDF(new ParseUserAgentString("id"), DataTypes.StringType, bidDf.col(USER_AGENT.getStructField().name())))
-                            // -- OS
-                    .withColumn("ua_os", callUDF(new ParseUserAgentString("operatingSystem"), DataTypes.StringType, bidDf.col(USER_AGENT.getStructField().name())))
-                    .withColumn("ua_os_name", callUDF(new ParseUserAgentString("operatingSystem.name"), DataTypes.StringType, bidDf.col(USER_AGENT.getStructField().name())))
-                    .withColumn("ua_os_device", callUDF(new ParseUserAgentString("operatingSystem.device"), DataTypes.StringType, bidDf.col(USER_AGENT.getStructField().name())))
-                    .withColumn("ua_os_group", callUDF(new ParseUserAgentString("operatingSystem.group"), DataTypes.StringType, bidDf.col(USER_AGENT.getStructField().name())))
-                    .withColumn("ua_os_manufacturer", callUDF(new ParseUserAgentString("operatingSystem.manufacturer"), DataTypes.StringType, bidDf.col(USER_AGENT.getStructField().name())))
-                    ;
+                .join(adExchangeDf, bidDf.col(AD_EXCH_ID.getStructField().name()).equalTo(adExchangeDf.col(AD_EXCH_ID.getStructField().name())), "left")
+                .join(logTypeDf, bidDf.col(LOG_TYPE_ID.getStructField().name()).equalTo(logTypeDf.col(LOG_TYPE_ID.getStructField().name())), "left")
+                .join(cityDf, bidDf.col(CITY_ID.getStructField().name()).equalTo(cityDf.col(CITY_ID.getStructField().name())), "inner")    // src data is messed a bit, so geo_point results in null -> 'inner' join is workaround
+                .join(stateDf, cityDf.col(STATE_ID.getStructField().name()).equalTo(stateDf.col(STATE_ID.getStructField().name())), "left")
+                .withColumn("user_tags_array", callUDF(new ParseUserTagsArray(), DataTypes.createArrayType(DataTypes.StringType), bidDf.col(USER_TAGS.getStructField().name())))
+                .withColumn("coordinates", callUDF(new ParseCoordinates(), DataTypes.createArrayType(DataTypes.FloatType),
+                        cityDf.col(CITY_LATITUDE.getStructField().name()), cityDf.col(CITY_LONGITUDE.getStructField().name())))
+                // User Info
+                // -- browser
+                .withColumn("ua_browser", callUDF(new ParseUserAgentString("browser"), DataTypes.StringType, bidDf.col(USER_AGENT.getStructField().name())))
+                .withColumn("ua_browser_group", callUDF(new ParseUserAgentString("browser.group"), DataTypes.StringType, bidDf.col(USER_AGENT.getStructField().name())))
+                .withColumn("ua_browser_manufacturer", callUDF(new ParseUserAgentString("browser.manufacturer"), DataTypes.StringType, bidDf.col(USER_AGENT.getStructField().name())))
+                .withColumn("ua_browser_rendering_engine", callUDF(new ParseUserAgentString("browser.rendering.engine"), DataTypes.StringType, bidDf.col(USER_AGENT.getStructField().name())))
+                .withColumn("ua_browserVersion", callUDF(new ParseUserAgentString("browserVersion"), DataTypes.StringType, bidDf.col(USER_AGENT.getStructField().name())))
+                .withColumn("ua_browserVersion_minor", callUDF(new ParseUserAgentString("browserVersion.minor"), DataTypes.StringType, bidDf.col(USER_AGENT.getStructField().name())))
+                .withColumn("ua_browserVersion_major", callUDF(new ParseUserAgentString("browserVersion.major"), DataTypes.StringType, bidDf.col(USER_AGENT.getStructField().name())))
+                // -- id
+                .withColumn("ua_id", callUDF(new ParseUserAgentString("id"), DataTypes.StringType, bidDf.col(USER_AGENT.getStructField().name())))
+                // -- OS
+                .withColumn("ua_os", callUDF(new ParseUserAgentString("operatingSystem"), DataTypes.StringType, bidDf.col(USER_AGENT.getStructField().name())))
+                .withColumn("ua_os_name", callUDF(new ParseUserAgentString("operatingSystem.name"), DataTypes.StringType, bidDf.col(USER_AGENT.getStructField().name())))
+                .withColumn("ua_os_device", callUDF(new ParseUserAgentString("operatingSystem.device"), DataTypes.StringType, bidDf.col(USER_AGENT.getStructField().name())))
+                .withColumn("ua_os_group", callUDF(new ParseUserAgentString("operatingSystem.group"), DataTypes.StringType, bidDf.col(USER_AGENT.getStructField().name())))
+                .withColumn("ua_os_manufacturer", callUDF(new ParseUserAgentString("operatingSystem.manufacturer"), DataTypes.StringType, bidDf.col(USER_AGENT.getStructField().name())))
 
+                .drop(bidDf.col(AD_EXCH_ID.getStructField().name()))
+                .drop(bidDf.col(LOG_TYPE_ID.getStructField().name()))
+                .drop(bidDf.col(CITY_ID.getStructField().name()))
+                .drop(bidDf.col(REGION.getStructField().name()))
+                ;
+
+            log.info("PARSED DATA");
             parsedBidDf.show();
-//            JavaEsSpark.saveJsonToEs(parsedBidDf.toJSON().toJavaRDD(), esIndex);
+            JavaEsSpark.saveJsonToEs(parsedBidDf.toJSON().toJavaRDD(), esIndex);
 
             return null;
         });
