@@ -11,18 +11,13 @@ import java.util.stream.Collectors;
 import static org.bidsup.engine.utils.MapperConstants.SchemaFields.*;
 
 public class MapperConstants {
-
     public static enum SchemaFields {
-
         BID_ID("bid_id", DataTypes.StringType, true),
         TIMESTAMP("timestamp", DataTypes.StringType, true),
-//        LOG_TYPE("log_type", DataTypes.IntegerType, true),
         IPINYOU_ID("ipinyou_id", DataTypes.StringType, true),
         USER_AGENT("user_agent", DataTypes.StringType, true),
         IP("ip", DataTypes.StringType, true),
         REGION("region", DataTypes.IntegerType, true),
-//        CITY("city", DataTypes.IntegerType, true),
-//        AD_EXCHANGE("ad_exchange", DataTypes.IntegerType, true),
         DOMAIN("domain", DataTypes.StringType, true),
         URL("url", DataTypes.StringType, true),
         ANONYMOUS_URL_ID("anonymous_url_id", DataTypes.StringType, true),
@@ -39,7 +34,7 @@ public class MapperConstants {
         ADVERTISER_ID("advertiser_id", DataTypes.LongType, true),
         USER_TAGS("user_tags", DataTypes.StringType, true),
 
-        AD_EXCH_ID("ad_exchange", DataTypes.IntegerType, true),
+        AD_EXCH_ID("ad_exchange_id", DataTypes.IntegerType, true),
         AD_EXCH_NAME("ad_exchange_name", DataTypes.StringType, true),
         AD_EXCH_DESC("ad_exchange_desc", DataTypes.StringType, true),
 
@@ -48,7 +43,6 @@ public class MapperConstants {
 
         CITY_ID("city_id", DataTypes.IntegerType, true),
         CITY_NAME("city_name", DataTypes.StringType, true),
-//        STATE_ID("state_id", DataTypes.IntegerType, true),
         CITY_POPULATION("population", DataTypes.StringType, true),
         CITY_AREA("area", DataTypes.FloatType, true),
         CITY_DENSITY("density", DataTypes.FloatType, true),
@@ -66,6 +60,26 @@ public class MapperConstants {
         KEYWORD_PRICING_TYPE("keyword_pricing_type", DataTypes.StringType, true),
         KEYWORD_MATCH_TYPE("keyword_match_type", DataTypes.StringType, true),
 
+        USER_TAGS_ARRAY("user_tags_array", DataTypes.createArrayType(DataTypes.StringType), true),
+        COORDINATES("coordinates", DataTypes.createArrayType(DataTypes.FloatType), false),
+
+        UA_BROWSER("ua_browser", DataTypes.StringType, true),
+        UA_BROWSER_TYPE("ua_browser_type", DataTypes.StringType, true),
+        UA_BROWSER_GROUP("ua_browser_group", DataTypes.StringType, true),
+        UA_BROWSER_MANUFACTURER("ua_browser_manufacturer", DataTypes.StringType, true),
+        UA_BROWSER_RENDERING_ENGINE("ua_browser_rendering_engine", DataTypes.StringType, true),
+
+        UA_BROWSERVERSION("ua_browserVersion", DataTypes.StringType, true),
+        UA_BROWSERVERSION_MINOR("ua_browserVersion_minor", DataTypes.StringType, true),
+        UA_BROWSERVERSION_MAJOR("ua_browserVersion_major", DataTypes.StringType, true),
+
+        UA_ID("ua_id", DataTypes.StringType, true),
+
+        UA_OS("ua_os", DataTypes.StringType, true),
+        UA_OS_NAME("ua_os_name", DataTypes.StringType, true),
+        UA_OS_DEVICE("ua_os_device", DataTypes.StringType, true),
+        UA_OS_GROUP("ua_os_group", DataTypes.StringType, true),
+        UA_OS_MANUFACTURER("ua_os_manufacturer", DataTypes.StringType, true)
         ;
 
         private final StructField structField;

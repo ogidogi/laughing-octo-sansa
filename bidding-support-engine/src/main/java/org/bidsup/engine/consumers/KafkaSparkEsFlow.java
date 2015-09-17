@@ -134,26 +134,26 @@ public class KafkaSparkEsFlow {
                 .join(logTypeDf, bidDf.col(LOG_TYPE_ID.getStructField().name()).equalTo(logTypeDf.col(LOG_TYPE_ID.getStructField().name())), "left")
                 .join(cityDf, bidDf.col(CITY_ID.getStructField().name()).equalTo(cityDf.col(CITY_ID.getStructField().name())), "inner")    // src data is messed a bit, so geo_point results in null -> 'inner' join is workaround
                 .join(stateDf, cityDf.col(STATE_ID.getStructField().name()).equalTo(stateDf.col(STATE_ID.getStructField().name())), "left")
-                .withColumn("user_tags_array", callUDF(new ParseUserTagsArray(), DataTypes.createArrayType(DataTypes.StringType), bidDf.col(USER_TAGS.getStructField().name())))
-                .withColumn("coordinates", callUDF(new ParseCoordinates(), DataTypes.createArrayType(DataTypes.FloatType),
+                .withColumn(USER_TAGS_ARRAY.getStructField().name(), callUDF(new ParseUserTagsArray(), DataTypes.createArrayType(DataTypes.StringType), bidDf.col(USER_TAGS.getStructField().name())))
+                .withColumn(COORDINATES.getStructField().name(), callUDF(new ParseCoordinates(), DataTypes.createArrayType(DataTypes.FloatType),
                         cityDf.col(CITY_LATITUDE.getStructField().name()), cityDf.col(CITY_LONGITUDE.getStructField().name())))
                 // User Info
                 // -- browser
-                .withColumn("ua_browser", callUDF(new ParseUserAgentString("browser"), DataTypes.StringType, bidDf.col(USER_AGENT.getStructField().name())))
-                .withColumn("ua_browser_group", callUDF(new ParseUserAgentString("browser.group"), DataTypes.StringType, bidDf.col(USER_AGENT.getStructField().name())))
-                .withColumn("ua_browser_manufacturer", callUDF(new ParseUserAgentString("browser.manufacturer"), DataTypes.StringType, bidDf.col(USER_AGENT.getStructField().name())))
-                .withColumn("ua_browser_rendering_engine", callUDF(new ParseUserAgentString("browser.rendering.engine"), DataTypes.StringType, bidDf.col(USER_AGENT.getStructField().name())))
-                .withColumn("ua_browserVersion", callUDF(new ParseUserAgentString("browserVersion"), DataTypes.StringType, bidDf.col(USER_AGENT.getStructField().name())))
-                .withColumn("ua_browserVersion_minor", callUDF(new ParseUserAgentString("browserVersion.minor"), DataTypes.StringType, bidDf.col(USER_AGENT.getStructField().name())))
-                .withColumn("ua_browserVersion_major", callUDF(new ParseUserAgentString("browserVersion.major"), DataTypes.StringType, bidDf.col(USER_AGENT.getStructField().name())))
+                .withColumn(UA_BROWSER.getStructField().name(), callUDF(new ParseUserAgentString(UA_BROWSER), DataTypes.StringType, bidDf.col(USER_AGENT.getStructField().name())))
+                .withColumn(UA_BROWSER_GROUP.getStructField().name(), callUDF(new ParseUserAgentString(UA_BROWSER_GROUP), DataTypes.StringType, bidDf.col(USER_AGENT.getStructField().name())))
+                .withColumn(UA_BROWSER_MANUFACTURER.getStructField().name(), callUDF(new ParseUserAgentString(UA_BROWSER_MANUFACTURER), DataTypes.StringType, bidDf.col(USER_AGENT.getStructField().name())))
+                .withColumn(UA_BROWSER_RENDERING_ENGINE.getStructField().name(), callUDF(new ParseUserAgentString(UA_BROWSER_RENDERING_ENGINE), DataTypes.StringType, bidDf.col(USER_AGENT.getStructField().name())))
+                .withColumn(UA_BROWSERVERSION.getStructField().name(), callUDF(new ParseUserAgentString(UA_BROWSERVERSION), DataTypes.StringType, bidDf.col(USER_AGENT.getStructField().name())))
+                .withColumn(UA_BROWSERVERSION_MINOR.getStructField().name(), callUDF(new ParseUserAgentString(UA_BROWSERVERSION_MINOR), DataTypes.StringType, bidDf.col(USER_AGENT.getStructField().name())))
+                .withColumn(UA_BROWSERVERSION_MAJOR.getStructField().name(), callUDF(new ParseUserAgentString(UA_BROWSERVERSION_MAJOR), DataTypes.StringType, bidDf.col(USER_AGENT.getStructField().name())))
                 // -- id
-                .withColumn("ua_id", callUDF(new ParseUserAgentString("id"), DataTypes.StringType, bidDf.col(USER_AGENT.getStructField().name())))
+                .withColumn(UA_ID.getStructField().name(), callUDF(new ParseUserAgentString(UA_ID), DataTypes.StringType, bidDf.col(USER_AGENT.getStructField().name())))
                 // -- OS
-                .withColumn("ua_os", callUDF(new ParseUserAgentString("operatingSystem"), DataTypes.StringType, bidDf.col(USER_AGENT.getStructField().name())))
-                .withColumn("ua_os_name", callUDF(new ParseUserAgentString("operatingSystem.name"), DataTypes.StringType, bidDf.col(USER_AGENT.getStructField().name())))
-                .withColumn("ua_os_device", callUDF(new ParseUserAgentString("operatingSystem.device"), DataTypes.StringType, bidDf.col(USER_AGENT.getStructField().name())))
-                .withColumn("ua_os_group", callUDF(new ParseUserAgentString("operatingSystem.group"), DataTypes.StringType, bidDf.col(USER_AGENT.getStructField().name())))
-                .withColumn("ua_os_manufacturer", callUDF(new ParseUserAgentString("operatingSystem.manufacturer"), DataTypes.StringType, bidDf.col(USER_AGENT.getStructField().name())))
+                .withColumn(UA_OS.getStructField().name(), callUDF(new ParseUserAgentString(UA_OS), DataTypes.StringType, bidDf.col(USER_AGENT.getStructField().name())))
+                .withColumn(UA_OS_NAME.getStructField().name(), callUDF(new ParseUserAgentString(UA_OS_NAME), DataTypes.StringType, bidDf.col(USER_AGENT.getStructField().name())))
+                .withColumn(UA_OS_DEVICE.getStructField().name(), callUDF(new ParseUserAgentString(UA_OS_DEVICE), DataTypes.StringType, bidDf.col(USER_AGENT.getStructField().name())))
+                .withColumn(UA_OS_GROUP.getStructField().name(), callUDF(new ParseUserAgentString(UA_OS_GROUP), DataTypes.StringType, bidDf.col(USER_AGENT.getStructField().name())))
+                .withColumn(UA_OS_MANUFACTURER.getStructField().name(), callUDF(new ParseUserAgentString(UA_OS_MANUFACTURER), DataTypes.StringType, bidDf.col(USER_AGENT.getStructField().name())))
 
                 .drop(bidDf.col(AD_EXCH_ID.getStructField().name()))
                 .drop(bidDf.col(LOG_TYPE_ID.getStructField().name()))
