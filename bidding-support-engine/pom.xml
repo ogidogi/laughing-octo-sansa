@@ -74,7 +74,7 @@
 			<version>1.10</version>
 		</dependency>
 
-        <!-- Google Json -->
+		<!-- Google Json -->
 		<dependency>
 			<groupId>com.google.code.gson</groupId>
 			<artifactId>gson</artifactId>
@@ -88,16 +88,16 @@
 			<version>4.5.1</version>
 		</dependency>
 
-		<!-- Elasticsearch-->
+		<!-- Elasticsearch -->
 		<dependency>
 			<groupId>org.elasticsearch</groupId>
 			<artifactId>elasticsearch</artifactId>
 			<version>1.7.2</version>
 		</dependency>
-        <dependency>
-            <groupId>org.elasticsearch</groupId>
-            <artifactId>elasticsearch-spark_2.10</artifactId>
-            <version>2.1.1</version>
+		<dependency>
+			<groupId>org.elasticsearch</groupId>
+			<artifactId>elasticsearch-spark_2.10</artifactId>
+			<version>2.1.1</version>
 			<exclusions>
 				<exclusion>
 					<groupId>org.slf4j</groupId>
@@ -110,14 +110,14 @@
 			</exclusions>
 		</dependency>
 
-        <!-- Cassandra -->
+		<!-- Cassandra -->
 		<dependency>
 			<groupId>com.datastax.spark</groupId>
 			<artifactId>spark-cassandra-connector-java_2.10</artifactId>
 			<version>1.5.0-M1</version>
 		</dependency>
 
-		<!-- Kafka-->
+		<!-- Kafka -->
 		<dependency>
 			<groupId>org.apache.kafka</groupId>
 			<artifactId>kafka_2.10</artifactId>
@@ -150,17 +150,30 @@
 			<artifactId>spark-sql_2.10</artifactId>
 			<version>1.5.0</version>
 		</dependency>
-
-		<!-- Utils-->
-		<dependency>
-			<groupId>com.restfb</groupId>
-			<artifactId>restfb</artifactId>
-			<version>1.14.1</version>
-		</dependency>
 		<dependency>
 			<groupId>com.databricks</groupId>
 			<artifactId>spark-csv_2.10</artifactId>
 			<version>1.2.0</version>
+		</dependency>
+
+		<!-- Sparkling Water -->
+		<dependency>
+			<groupId>ai.h2o</groupId>
+			<artifactId>sparkling-water-core_2.10</artifactId>
+			<version>1.4.3</version>
+		</dependency>
+		<dependency>
+			<groupId>ai.h2o</groupId>
+			<artifactId>sparkling-water-examples_2.10</artifactId>
+			<version>1.4.3</version>
+		</dependency>
+
+
+		<!-- Utils -->
+		<dependency>
+			<groupId>com.restfb</groupId>
+			<artifactId>restfb</artifactId>
+			<version>1.14.1</version>
 		</dependency>
 		<dependency>
 			<groupId>eu.bitwalker</groupId>
