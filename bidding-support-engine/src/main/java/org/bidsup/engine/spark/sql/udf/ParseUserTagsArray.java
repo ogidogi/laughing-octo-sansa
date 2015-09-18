@@ -11,17 +11,25 @@ import java.util.stream.Collectors;
 public class ParseUserTagsArray extends AbstractFunction1<String, List<String>> implements Serializable {
 
     private static final long serialVersionUID = -1484997808699658439L;
+    private static final String DFTL_DELIMITER = ",";
+
+    private String delimiter;
 
     public ParseUserTagsArray() {
         super();
+        delimiter = DFTL_DELIMITER;
+    }
+
+    public ParseUserTagsArray(String delim) {
+        super();
+        delimiter = delim;
     }
 
     @Override
     public List<String> apply(String value) {
-        //        return Arrays.stream(value.split(",")).map(x -> Integer.parseInt(x)).collect(Collectors.toList());
         if (value == null) {
-            return Arrays.asList("0");
+            return null;    //Arrays.asList("0");
         }
-        return Arrays.stream(value.split(",")).collect(Collectors.toList());
+        return Arrays.stream(value.split(delimiter)).collect(Collectors.toList());
     }
 }

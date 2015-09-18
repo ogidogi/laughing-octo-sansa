@@ -11,7 +11,7 @@ import java.util.stream.Collectors;
 import static org.bidsup.engine.utils.MapperConstants.SchemaFields.*;
 
 public class MapperConstants {
-    public static enum SchemaFields {
+    public enum SchemaFields {
         BID_ID("bid_id", DataTypes.StringType, true),
         TIMESTAMP("timestamp", DataTypes.StringType, true),
         IPINYOU_ID("ipinyou_id", DataTypes.StringType, true),
@@ -33,6 +33,8 @@ public class MapperConstants {
         KEY_PAGE_URL("key_page_url", DataTypes.StringType, true),
         ADVERTISER_ID("advertiser_id", DataTypes.LongType, true),
         USER_TAGS("user_tags", DataTypes.StringType, true),
+
+        USER_TAG_ID("user_tags", DataTypes.LongType, true),
 
         AD_EXCH_ID("ad_exchange_id", DataTypes.IntegerType, true),
         AD_EXCH_NAME("ad_exchange_name", DataTypes.StringType, true),
@@ -56,9 +58,6 @@ public class MapperConstants {
 
         KEYWORD_ID("keyword_id", DataTypes.IntegerType, true),
         KEYWORD_VALUE("keyword_value", DataTypes.StringType, true),
-        KEYWORD_STATUS("keyword_status", DataTypes.StringType, true),
-        KEYWORD_PRICING_TYPE("keyword_pricing_type", DataTypes.StringType, true),
-        KEYWORD_MATCH_TYPE("keyword_match_type", DataTypes.StringType, true),
 
         USER_TAGS_ARRAY("user_tags_array", DataTypes.createArrayType(DataTypes.StringType), true),
         COORDINATES("coordinates", DataTypes.createArrayType(DataTypes.FloatType), false),
@@ -79,7 +78,17 @@ public class MapperConstants {
         UA_OS_NAME("ua_os_name", DataTypes.StringType, true),
         UA_OS_DEVICE("ua_os_device", DataTypes.StringType, true),
         UA_OS_GROUP("ua_os_group", DataTypes.StringType, true),
-        UA_OS_MANUFACTURER("ua_os_manufacturer", DataTypes.StringType, true)
+        UA_OS_MANUFACTURER("ua_os_manufacturer", DataTypes.StringType, true),
+
+        SITE_PAGE_ID("site_page_id", DataTypes.LongType, true),
+        SITE_PAGE_URL("site_page_url", DataTypes.StringType, true),
+        SITE_PAGE_TAG("site_page_tag", DataTypes.StringType, true),
+
+        USER_PROFILE_TAG_ID("user_profile_tag_id", DataTypes.LongType, true),
+        USER_PROFILE_TAG_VALUE("user_profile_tag_value", DataTypes.StringType, true),
+        USER_PROFILE_TAG_PRICE_TYPE("user_profile_tag_price_type", DataTypes.StringType, true),
+        USER_PROFILE_TAG_MATCH_TYPE("user_profile_tag_match_type", DataTypes.StringType, true),
+        USER_PROFILE_TAG_DEST_URL("user_profile_tag_dest_url", DataTypes.StringType, true),
         ;
 
         private final StructField structField;
@@ -91,19 +100,27 @@ public class MapperConstants {
         public StructField getStructField() {
             return structField;
         }
+        public String getName() {
+            return this.getStructField().name();
+        }
     }
 
 
-    public static enum MappingSchemas {
+    public enum MappingSchemas {
         BID_SCHEMA(BID_ID, TIMESTAMP, LOG_TYPE_ID, IPINYOU_ID, USER_AGENT, IP, REGION, CITY_ID, AD_EXCH_ID, DOMAIN, URL,
                 ANONYMOUS_URL_ID, AD_SLOT_ID, AD_SLOT_WIDTH, AD_SLOT_HEIGHT, AD_SLOT_VISIBILITY, AD_SLOT_FORMAT,
                 AD_SLOT_FLOOR_PRICE, CREATIVE_ID, BIDDING_PRICE, PAYING_PRICE, KEY_PAGE_URL, ADVERTISER_ID, USER_TAGS),
+        BID_LOG_SCHEMA(BID_ID, TIMESTAMP, IPINYOU_ID, USER_AGENT, IP, REGION, CITY_ID, AD_EXCH_ID, DOMAIN, URL,
+                ANONYMOUS_URL_ID, AD_SLOT_ID, AD_SLOT_WIDTH, AD_SLOT_HEIGHT, AD_SLOT_VISIBILITY, AD_SLOT_FORMAT,
+                AD_SLOT_FLOOR_PRICE, CREATIVE_ID, BIDDING_PRICE, ADVERTISER_ID, USER_TAG_ID, LOG_TYPE_ID, PAYING_PRICE),
         AD_EXCH_SCHEMA(AD_EXCH_ID, AD_EXCH_NAME, AD_EXCH_DESC),
         LOG_TYPE_SCHEMA(LOG_TYPE_ID, LOG_TYPE_NAME),
         CITY_SCHEMA(CITY_ID, CITY_NAME, STATE_ID, CITY_POPULATION, CITY_AREA, CITY_DENSITY, CITY_LATITUDE, CITY_LONGITUDE),
         STATE_SCHEMA(STATE_ID, STATE_NAME, STATE_POPULATION, STATE_GSP),
-        KEYWORD_SCHEMA(KEYWORD_ID, KEYWORD_VALUE, KEYWORD_STATUS, KEYWORD_PRICING_TYPE, KEYWORD_MATCH_TYPE),
-
+        KEYWORD_SCHEMA(KEYWORD_ID, KEYWORD_VALUE),
+        SITE_PAGES_SCHEMA(SITE_PAGE_ID, SITE_PAGE_URL, SITE_PAGE_TAG),
+        USER_PROFILE_TAGS_SCHEMA(USER_PROFILE_TAG_ID, USER_PROFILE_TAG_VALUE, USER_PROFILE_TAG_PRICE_TYPE,
+                USER_PROFILE_TAG_MATCH_TYPE, USER_PROFILE_TAG_DEST_URL)
         ;
 
         private final StructType schema;

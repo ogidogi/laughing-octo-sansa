@@ -67,7 +67,7 @@ public class KafkaSparkEsFlow {
         long sparkStreamDuration = conf.getLong("stream.duration");
 
         // Es props
-        String esIndex = conf.getString("es.index");
+        String esIndex = "rtb_test/log_item";
         String esIdxAutoCreate = conf.getString("es.index.auto.create");
 
         SparkConf sparkConf = new SparkConf()
