@@ -13,6 +13,7 @@ import org.apache.spark.sql.types.DataTypes;
 import org.bidsup.engine.spark.sql.udf.ParseCoordinates;
 import org.bidsup.engine.spark.sql.udf.ParseUserAgentString;
 import org.bidsup.engine.utils.MapperConstants;
+import org.elasticsearch.spark.rdd.api.java.JavaEsSpark;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -22,6 +23,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import static org.apache.spark.sql.functions.callUDF;
+import static org.apache.spark.sql.functions.coalesce;
 import static org.bidsup.engine.utils.MapperConstants.MappingSchemas.*;
 import static org.bidsup.engine.utils.MapperConstants.SchemaFields.*;
 
@@ -38,7 +40,7 @@ public class BiddingLogWorkflow {
         conf.addConfiguration(new PropertiesConfiguration("es.properties"));
 
         Path filePath = Paths.get("/media/sf_Download/ipinyou/new_test");
-        String esIdxSuffix = "log_%s/bid";
+        String esIdxSuffix = "log_test_%s/bid";
 
         BiddingLogWorkflow wf = new BiddingLogWorkflow();
 
@@ -103,7 +105,7 @@ public class BiddingLogWorkflow {
                 )
             )
             .withColumnRenamed(SITE_PAGE_ID.getName(), KEYWORD_ID.getName())
-            .withColumnRenamed(SITE_PAGE_TAG.getName(), KEYWORD_VALUE.getName());
+            .withColumnRenamed(SITE_PAGE_TAG.getName(), KEYWORD_NAME.getName());
 
         // Walk through dir and process log files
         // put files in ES index by date
@@ -113,39 +115,78 @@ public class BiddingLogWorkflow {
                 log.info(String.format("Processing %s", fileName));
                 String esIdx = BiddingLogWorkflow.getEsIdxFromName(fileName, esIdxSuffix);
 
-                DataFrame bidLogDf = BiddingLogWorkflow.getDataFrameFromCsv(sqlContext, BID_LOG_SCHEMA, filePath, false);
+                log.info("Read data from file");
+                DataFrame bidLogDf = BiddingLogWorkflow.getDataFrameFromCsv(sqlContext, BID_LOG_SCHEMA, file, false);
+
+                log.info("Join with dictionaries");
                 DataFrame parsedBidLogDf = bidLogDf
                     .join(adExchangeDf, bidLogDf.col(AD_EXCH_ID.getName()).equalTo(adExchangeDf.col(AD_EXCH_ID.getName())), "left")
                     .join(logTypeDf, bidLogDf.col(LOG_TYPE_ID.getName()).equalTo(logTypeDf.col(LOG_TYPE_ID.getName())), "left")
                     .join(cityDf, bidLogDf.col(CITY_ID.getName()).equalTo(cityDf.col(CITY_ID.getName())), "inner")    // src data is messed a bit, so geo_point results in null -> 'inner' join is workaround
                     .join(stateDf, cityDf.col(STATE_ID.getName()).equalTo(stateDf.col(STATE_ID.getName())), "left")
-                    .join(keywordDf, bidLogDf.col(USER_TAG_ID.getName()).equalTo(keywordDf.col(KEYWORD_ID.getName())), "left")
+                    .join(keywordDf, bidLogDf.col(USER_TAGS.getName()).equalTo(keywordDf.col(KEYWORD_ID.getName())), "left")
                     .withColumn(COORDINATES.getName(), callUDF(new ParseCoordinates(), DataTypes.createArrayType(DataTypes.FloatType), cityDf.col(CITY_LATITUDE.getName()), cityDf.col(CITY_LONGITUDE.getName())))
-                            // User Info
-                            // -- browser
-                    .withColumn(UA_BROWSER.getName(), callUDF(new ParseUserAgentString(UA_BROWSER), DataTypes.StringType, bidLogDf.col(USER_AGENT.getName())))
-                    .withColumn(UA_BROWSER_GROUP.getName(), callUDF(new ParseUserAgentString(UA_BROWSER_GROUP), DataTypes.StringType, bidLogDf.col(USER_AGENT.getName())))
-                    .withColumn(UA_BROWSER_MANUFACTURER.getName(), callUDF(new ParseUserAgentString(UA_BROWSER_MANUFACTURER), DataTypes.StringType, bidLogDf.col(USER_AGENT.getName())))
-                    .withColumn(UA_BROWSER_RENDERING_ENGINE.getName(), callUDF(new ParseUserAgentString(UA_BROWSER_RENDERING_ENGINE), DataTypes.StringType, bidLogDf.col(USER_AGENT.getName())))
-                    .withColumn(UA_BROWSERVERSION.getName(), callUDF(new ParseUserAgentString(UA_BROWSERVERSION), DataTypes.StringType, bidLogDf.col(USER_AGENT.getName())))
-                    .withColumn(UA_BROWSERVERSION_MINOR.getName(), callUDF(new ParseUserAgentString(UA_BROWSERVERSION_MINOR), DataTypes.StringType, bidLogDf.col(USER_AGENT.getName())))
-                    .withColumn(UA_BROWSERVERSION_MAJOR.getName(), callUDF(new ParseUserAgentString(UA_BROWSERVERSION_MAJOR), DataTypes.StringType, bidLogDf.col(USER_AGENT.getName())))
-                            // -- id
-                    .withColumn(UA_ID.getName(), callUDF(new ParseUserAgentString(UA_ID), DataTypes.StringType, bidLogDf.col(USER_AGENT.getName())))
-                            // -- OS
-                    .withColumn(UA_OS.getName(), callUDF(new ParseUserAgentString(UA_OS), DataTypes.StringType, bidLogDf.col(USER_AGENT.getName())))
-                    .withColumn(UA_OS_NAME.getName(), callUDF(new ParseUserAgentString(UA_OS_NAME), DataTypes.StringType, bidLogDf.col(USER_AGENT.getName())))
-                    .withColumn(UA_OS_DEVICE.getName(), callUDF(new ParseUserAgentString(UA_OS_DEVICE), DataTypes.StringType, bidLogDf.col(USER_AGENT.getName())))
-                    .withColumn(UA_OS_GROUP.getName(), callUDF(new ParseUserAgentString(UA_OS_GROUP), DataTypes.StringType, bidLogDf.col(USER_AGENT.getName())))
-                    .withColumn(UA_OS_MANUFACTURER.getName(), callUDF(new ParseUserAgentString(UA_OS_MANUFACTURER), DataTypes.StringType, bidLogDf.col(USER_AGENT.getName())))
+                     ;
 
-                    .drop(bidLogDf.col(AD_EXCH_ID.getName()))
-                    .drop(bidLogDf.col(LOG_TYPE_ID.getName()))
-                    .drop(bidLogDf.col(CITY_ID.getName()))
-                    .drop(cityDf.col(STATE_ID.getName()))
-                    .drop(bidLogDf.col(USER_TAG_ID.getName()));
+                DataFrame searchCompatibleDf = parsedBidLogDf
+                        .select(
+                                // BID
+                                parsedBidLogDf.col(BID_ID.getName()),
+                                parsedBidLogDf.col(TIMESTAMP.getName()),
+                                parsedBidLogDf.col(IPINYOU_ID.getName()),
+                                parsedBidLogDf.col(USER_AGENT.getName()),
+                                parsedBidLogDf.col(IP.getName()),
+                                parsedBidLogDf.col(DOMAIN.getName()),
+                                parsedBidLogDf.col(URL.getName()),
+                                parsedBidLogDf.col(ANONYMOUS_URL_ID.getName()),
+                                parsedBidLogDf.col(AD_SLOT_ID.getName()),
+                                parsedBidLogDf.col(AD_SLOT_WIDTH.getName()),
+                                parsedBidLogDf.col(AD_SLOT_HEIGHT.getName()),
+                                parsedBidLogDf.col(AD_SLOT_VISIBILITY.getName()),
+                                parsedBidLogDf.col(AD_SLOT_FORMAT.getName()),
+                                parsedBidLogDf.col(AD_SLOT_FLOOR_PRICE.getName()),
+                                parsedBidLogDf.col(CREATIVE_ID.getName()),
+                                parsedBidLogDf.col(AD_SLOT_WIDTH.getName()),
+                                parsedBidLogDf.col(ADVERTISER_ID.getName()),
+                                parsedBidLogDf.col(PAYING_PRICE.getName()),
+                                // ADX
+                                parsedBidLogDf.col(AD_EXCH_NAME.getName()),
+                                parsedBidLogDf.col(AD_EXCH_DESC.getName()),
+                                // LOG TYPE
+                                parsedBidLogDf.col(LOG_TYPE_NAME.getName()),
+                                // CITY
+                                parsedBidLogDf.col(CITY_NAME.getName()),
+                                parsedBidLogDf.col(CITY_POPULATION.getName()),
+                                parsedBidLogDf.col(CITY_AREA.getName()),
+                                parsedBidLogDf.col(CITY_DENSITY.getName()),
+                                parsedBidLogDf.col(COORDINATES.getName()),
+                                // STATE
+                                parsedBidLogDf.col(STATE_NAME.getName()),
+                                parsedBidLogDf.col(STATE_POPULATION.getName()),
+                                parsedBidLogDf.col(STATE_GSP.getName()),
+                                // KEYWORD
+                                coalesce(parsedBidLogDf.col(KEYWORD_NAME.getName()), parsedBidLogDf.col(USER_TAGS.getName())).alias(KEYWORD_NAME.getName())
+                        )
+                        .withColumn(UA_BROWSER.getName(), callUDF(new ParseUserAgentString(UA_BROWSER), DataTypes.StringType, bidLogDf.col(USER_AGENT.getName())))
+                        .withColumn(UA_BROWSER_GROUP.getName(), callUDF(new ParseUserAgentString(UA_BROWSER_GROUP), DataTypes.StringType, bidLogDf.col(USER_AGENT.getName())))
+                        .withColumn(UA_BROWSER_MANUFACTURER.getName(), callUDF(new ParseUserAgentString(UA_BROWSER_MANUFACTURER), DataTypes.StringType, bidLogDf.col(USER_AGENT.getName())))
+                        .withColumn(UA_BROWSER_RENDERING_ENGINE.getName(), callUDF(new ParseUserAgentString(UA_BROWSER_RENDERING_ENGINE), DataTypes.StringType, bidLogDf.col(USER_AGENT.getName())))
+                        .withColumn(UA_BROWSERVERSION.getName(), callUDF(new ParseUserAgentString(UA_BROWSERVERSION), DataTypes.StringType, bidLogDf.col(USER_AGENT.getName())))
+                        .withColumn(UA_BROWSERVERSION_MINOR.getName(), callUDF(new ParseUserAgentString(UA_BROWSERVERSION_MINOR), DataTypes.StringType, bidLogDf.col(USER_AGENT.getName())))
+                        .withColumn(UA_BROWSERVERSION_MAJOR.getName(), callUDF(new ParseUserAgentString(UA_BROWSERVERSION_MAJOR), DataTypes.StringType, bidLogDf.col(USER_AGENT.getName())))
+                        .withColumn(UA_ID.getName(), callUDF(new ParseUserAgentString(UA_ID), DataTypes.StringType, bidLogDf.col(USER_AGENT.getName())))
+                        .withColumn(UA_OS.getName(), callUDF(new ParseUserAgentString(UA_OS), DataTypes.StringType, bidLogDf.col(USER_AGENT.getName())))
+                        .withColumn(UA_OS_NAME.getName(), callUDF(new ParseUserAgentString(UA_OS_NAME), DataTypes.StringType, bidLogDf.col(USER_AGENT.getName())))
+                        .withColumn(UA_OS_DEVICE.getName(), callUDF(new ParseUserAgentString(UA_OS_DEVICE), DataTypes.StringType, bidLogDf.col(USER_AGENT.getName())))
+                        .withColumn(UA_OS_GROUP.getName(), callUDF(new ParseUserAgentString(UA_OS_GROUP), DataTypes.StringType, bidLogDf.col(USER_AGENT.getName())))
+                        .withColumn(UA_OS_MANUFACTURER.getName(), callUDF(new ParseUserAgentString(UA_OS_MANUFACTURER), DataTypes.StringType, bidLogDf.col(USER_AGENT.getName())))
+                        ;
 
-                parsedBidLogDf.show();
+                searchCompatibleDf.show();
+
+                // Save data to ES
+                log.info(String.format("Saving %s to ES: %s", fileName, esIdx));
+                JavaEsSpark.saveJsonToEs(searchCompatibleDf.toJSON().toJavaRDD(), esIdx);
             }
         });
     }
