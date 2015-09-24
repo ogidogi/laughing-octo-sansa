@@ -27,9 +27,9 @@
       </ThreadGroup>
       <hashTree>
         <CSVDataSet guiclass="TestBeanGUI" testclass="CSVDataSet" testname="CSV Data Set Config" enabled="true">
-          <stringProp name="delimiter">\r</stringProp>
+          <stringProp name="delimiter">\n</stringProp>
           <stringProp name="fileEncoding"></stringProp>
-          <stringProp name="filename">/mnt/data/workspace/laughing-octo-sansa/data/clk.20130606.txt</stringProp>
+          <stringProp name="filename">/mnt/data/workspace/laughing-octo-sansa/data/craigslistJobTitles_test.csv</stringProp>
           <boolProp name="quotedData">true</boolProp>
           <boolProp name="recycle">true</boolProp>
           <stringProp name="shareMode">shareMode.all</stringProp>

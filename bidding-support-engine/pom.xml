@@ -114,7 +114,7 @@
 		<dependency>
 			<groupId>com.datastax.spark</groupId>
 			<artifactId>spark-cassandra-connector-java_2.10</artifactId>
-			<version>1.5.0-M1</version>
+			<version>1.4.0</version>
 		</dependency>
 
 		<!-- Kafka -->
@@ -128,27 +128,27 @@
 		<dependency>
 			<groupId>org.apache.spark</groupId>
 			<artifactId>spark-core_2.10</artifactId>
-			<version>1.5.0</version>
+			<version>1.4.1</version>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.spark</groupId>
 			<artifactId>spark-streaming_2.10</artifactId>
-			<version>1.5.0</version>
+			<version>1.4.1</version>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.spark</groupId>
 			<artifactId>spark-streaming-kafka_2.10</artifactId>
-			<version>1.5.0</version>
+			<version>1.4.1</version>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.spark</groupId>
 			<artifactId>spark-streaming-twitter_2.10</artifactId>
-			<version>1.5.0</version>
+			<version>1.4.1</version>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.spark</groupId>
 			<artifactId>spark-sql_2.10</artifactId>
-			<version>1.5.0</version>
+			<version>1.4.1</version>
 		</dependency>
 		<dependency>
 			<groupId>com.databricks</groupId>
@@ -167,7 +167,6 @@
 			<artifactId>sparkling-water-examples_2.10</artifactId>
 			<version>1.4.3</version>
 		</dependency>
-
 
 		<!-- Utils -->
 		<dependency>
