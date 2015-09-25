@@ -39,8 +39,8 @@ public class BiddingLogWorkflow {
         conf.addConfiguration(new PropertiesConfiguration("spark.properties"));
         conf.addConfiguration(new PropertiesConfiguration("es.properties"));
 
-        Path filePath = Paths.get("/media/sf_Download/ipinyou/new_test");
-        String esIdxSuffix = "log_test_%s/bid";
+        Path filePath = Paths.get("/media/sf_Download/ipinyou/new");
+        String esIdxSuffix = "log_%s/bid";
 
         BiddingLogWorkflow wf = new BiddingLogWorkflow();
 
