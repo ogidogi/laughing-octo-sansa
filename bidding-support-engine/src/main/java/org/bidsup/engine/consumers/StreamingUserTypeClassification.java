@@ -73,16 +73,16 @@ public class StreamingUserTypeClassification {
         CraigslistJobTitlesApp staticApp = new CraigslistJobTitlesApp(craigslistJobTitles, sp.sc(), sqlContext, h2oContext);
         try {
             final Tuple2<Model<?, ?, ?>, Word2VecModel> tModel = staticApp.buildModels(craigslistJobTitles, "initialModel");
-            final Word2VecModel w2vModel = tModel._2;
-            final String modelId = tModel._1._key.toString();
+            final Word2VecModel w2vModel = tModel._2();
+            final String modelId = tModel._1()._key.toString();
 
             // Create direct kafka stream with brokers and topics
             JavaPairInputDStream<String, String> messages = KafkaUtils.createDirectStream(jssc, String.class, String.class,
                     StringDecoder.class, StringDecoder.class, kafkaParams, topicsSet);
 
             // Classify incoming messages
-            messages.map(mesage -> mesage._2).filter(str -> !str.isEmpty()).map(jobTitle -> staticApp.classify(jobTitle, modelId, w2vModel))
-                    .map(pred -> new StringBuilder(100).append('\"').append(pred._1).append("\" = ").append(Arrays.toString(pred._2)))
+            messages.map(mesage -> mesage._2()).filter(str -> !str.isEmpty()).map(jobTitle -> staticApp.classify(jobTitle, modelId, w2vModel))
+                    .map(pred -> new StringBuilder(100).append('\"').append(pred._1()).append("\" = ").append(Arrays.toString(pred._2())))
                     .print();
 
             jssc.start();
