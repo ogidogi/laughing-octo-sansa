@@ -1,8 +1,11 @@
 package org.marksup.engine.consumers;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
 
 import org.apache.commons.configuration.CompositeConfiguration;
 import org.apache.commons.configuration.ConfigurationException;
@@ -10,6 +13,7 @@ import org.apache.commons.configuration.PropertiesConfiguration;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import org.apache.spark.SparkConf;
+import org.apache.spark.SparkContext;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.examples.h2o.CraigslistJobTitlesApp;
 import org.apache.spark.h2o.H2OContext;
@@ -23,10 +27,17 @@ import org.apache.spark.streaming.kafka.KafkaUtils;
 import hex.Model;
 import kafka.serializer.StringDecoder;
 import scala.Tuple2;
+import water.Key;
+import water.api.Handler;
+import water.exceptions.H2OIllegalArgumentException;
+import water.serial.ObjectTreeBinarySerializer;
+import water.util.FileUtils;
 
 public class StreamingUserTypeClassification {
     private static final Logger log = Logger.getLogger(StreamingUserTypeClassification.class);
     private static final String craigslistJobTitles = "/mnt/data/workspace/laughing-octo-sansa/data/craigslistJobTitles.csv";
+    private static final String h2oModelFolder = "/mnt/data/workspace/laughing-octo-sansa/data/h2oModel";
+    private static final String word2VecModelFolder = "/mnt/data/workspace/laughing-octo-sansa/data/word2VecModel";
 
     public static void main(String[] args) throws ConfigurationException {
         StreamingUserTypeClassification workflow = new StreamingUserTypeClassification();
@@ -72,9 +83,11 @@ public class StreamingUserTypeClassification {
 
         CraigslistJobTitlesApp staticApp = new CraigslistJobTitlesApp(craigslistJobTitles, sp.sc(), sqlContext, h2oContext);
         try {
-            final Tuple2<Model<?, ?, ?>, Word2VecModel> tModel = staticApp.buildModels(craigslistJobTitles, "initialModel");
-            final Word2VecModel w2vModel = tModel._2();
+            // final Tuple2<Model<?, ?, ?>, Word2VecModel> tModel = staticApp.buildModels(craigslistJobTitles, "initialModel");
+            final Tuple2<Model<?, ?, ?>, Word2VecModel> tModel = importModels(h2oModelFolder, word2VecModelFolder, sp.sc());
             final String modelId = tModel._1()._key.toString();
+            final Word2VecModel w2vModel = tModel._2();
+            // exportModels(tModel._1(), w2vModel, sp.sc());
 
             // Create direct kafka stream with brokers and topics
             JavaPairInputDStream<String, String> messages = KafkaUtils.createDirectStream(jssc, String.class, String.class,
@@ -94,5 +107,40 @@ public class StreamingUserTypeClassification {
             jssc.stop();
             staticApp.shutdown();
         }
+    }
+
+    private Tuple2<Model<?, ?, ?>, Word2VecModel> importModels(String h2oModelFolder, String word2VecModelFolder, SparkContext sc) {
+        return new Tuple2<Model<?, ?, ?>, Word2VecModel>(importH2OModel(h2oModelFolder), Word2VecModel.load(sc, word2VecModelFolder));
+    }
+
+    private void exportModels(Model h2oModel, String h2oModelFolder, Word2VecModel w2vModel, String word2VecModelFolder, SparkContext sc) {
+        exportH2OModel(h2oModel, h2oModelFolder);
+        w2vModel.save(sc, word2VecModelFolder);
+    }
+
+    public void exportH2OModel(Model exportModel, String dir) {
+        Model model = Handler.getFromDKV("model_id", exportModel._key, Model.class);
+
+        List<Key> keysToExport = new LinkedList<>();
+        keysToExport.add(model._key);
+        keysToExport.addAll(model.getPublishedKeys());
+
+        try {
+            new ObjectTreeBinarySerializer().save(keysToExport, FileUtils.getURI(dir));
+        } catch (IOException e) {
+            throw new H2OIllegalArgumentException("dir", "exportModel", e);
+        }
+    }
+
+    public Model importH2OModel(String dir) {
+        Model model = null;
+        try {
+            List<Key> importedKeys = new ObjectTreeBinarySerializer().load(FileUtils.getURI(dir));
+            model = (Model) importedKeys.get(0).get();
+        } catch (IOException e) {
+            throw new H2OIllegalArgumentException("dir", "importModel", e);
+        }
+
+        return model;
     }
 }
