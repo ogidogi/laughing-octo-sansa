@@ -1,4 +1,4 @@
-package org.bidsup.engine.beans;
+package org.marksup.engine.beans;
 
 import java.io.Serializable;
 import java.util.UUID;

@@ -1,4 +1,4 @@
-package org.bidsup.engine.crawlers;
+package org.marksup.engine.crawlers;
 
 import org.apache.commons.configuration.CompositeConfiguration;
 import org.apache.commons.configuration.ConfigurationException;
@@ -8,7 +8,7 @@ import org.apache.log4j.Logger;
 import org.apache.spark.SparkConf;
 import org.apache.spark.streaming.Durations;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
-import org.bidsup.engine.utils.FacebookUtils;
+import org.marksup.engine.utils.FacebookUtils;
 
 import com.restfb.Parameter;
 import com.restfb.batch.BatchRequest;

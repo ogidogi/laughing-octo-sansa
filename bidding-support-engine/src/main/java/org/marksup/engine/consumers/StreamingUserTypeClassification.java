@@ -1,4 +1,4 @@
-package org.bidsup.engine.consumers;
+package org.marksup.engine.consumers;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -81,7 +81,8 @@ public class StreamingUserTypeClassification {
                     StringDecoder.class, StringDecoder.class, kafkaParams, topicsSet);
 
             // Classify incoming messages
-            messages.map(mesage -> mesage._2()).filter(str -> !str.isEmpty()).map(jobTitle -> staticApp.classify(jobTitle, modelId, w2vModel))
+            messages.map(mesage -> mesage._2()).filter(str -> !str.isEmpty())
+                    .map(jobTitle -> staticApp.classify(jobTitle, modelId, w2vModel))
                     .map(pred -> new StringBuilder(100).append('\"').append(pred._1()).append("\" = ").append(Arrays.toString(pred._2())))
                     .print();
 

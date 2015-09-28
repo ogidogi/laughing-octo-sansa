@@ -3,11 +3,11 @@
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 
-	<groupId>org.bidsup.engine</groupId>
-	<artifactId>bidding-support-engine</artifactId>
+	<groupId>org.marksup.engine</groupId>
+	<artifactId>marketing-support-engine</artifactId>
 	<version>1.0</version>
 	<packaging>jar</packaging>
-	<name>bidding-support-engine</name>
+	<name>marketing-support-engine</name>
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -157,25 +157,15 @@
 		</dependency>
 
 		<!-- Sparkling Water -->
-        <dependency>
-            <groupId>ai.h2o</groupId>
-            <artifactId>h2o-algos</artifactId>
-            <version>3.0.0.26</version>
-        </dependency>
-        <dependency>
-			<groupId>ai.h2o</groupId>
-			<artifactId>h2o-core</artifactId>
-			<version>3.0.0.26</version>
-		</dependency>
 		<dependency>
 			<groupId>ai.h2o</groupId>
 			<artifactId>sparkling-water-core_2.10</artifactId>
-			<version>1.4.3</version>
+			<version>1.4.4</version>
 		</dependency>
 		<dependency>
 			<groupId>ai.h2o</groupId>
 			<artifactId>sparkling-water-examples_2.10</artifactId>
-			<version>1.4.3</version>
+			<version>1.4.4</version>
 		</dependency>
 
 		<!-- Utils -->

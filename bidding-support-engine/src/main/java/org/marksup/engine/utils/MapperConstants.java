@@ -1,14 +1,14 @@
-package org.bidsup.engine.utils;
+package org.marksup.engine.utils;
 
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
 
+import static org.marksup.engine.utils.MapperConstants.SchemaFields.*;
+
 import java.util.Arrays;
 import java.util.stream.Collectors;
-
-import static org.bidsup.engine.utils.MapperConstants.SchemaFields.*;
 
 public class MapperConstants {
     public enum SchemaFields {
@@ -120,8 +120,7 @@ public class MapperConstants {
         KEYWORD_SCHEMA(KEYWORD_ID, KEYWORD_NAME),
         SITE_PAGES_SCHEMA(SITE_PAGE_ID, SITE_PAGE_URL, SITE_PAGE_TAG),
         USER_PROFILE_TAGS_SCHEMA(USER_PROFILE_TAG_ID, USER_PROFILE_TAG_VALUE, USER_PROFILE_TAG_PRICE_TYPE,
-                USER_PROFILE_TAG_MATCH_TYPE, USER_PROFILE_TAG_DEST_URL)
-        ;
+                                                                USER_PROFILE_TAG_MATCH_TYPE, USER_PROFILE_TAG_DEST_URL);
 
         private final StructType schema;
 

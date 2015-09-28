@@ -1,4 +1,4 @@
-package org.bidsup.engine.utils;
+package org.marksup.engine.utils;
 
 import org.apache.spark.storage.StorageLevel;
 import org.apache.spark.streaming.StreamingContext;

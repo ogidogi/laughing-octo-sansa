@@ -1,4 +1,4 @@
-package org.bidsup.engine.kafka.producers;
+package org.marksup.engine.kafka.producers;
 
 import kafka.javaapi.producer.Producer;
 import kafka.producer.KeyedMessage;
@@ -26,14 +26,13 @@ public class KafkaRtbProducer {
         Properties props = new Properties();
         props.put("metadata.broker.list", "quickstart.cloudera:9092");
         props.put("serializer.class", "kafka.serializer.StringEncoder");
-//        props.put("partitioner.class", "example.producer.SimplePartitioner");
+        // props.put("partitioner.class", "example.producer.SimplePartitioner");
         props.put("request.required.acks", "1");
 
         ProducerConfig config = new ProducerConfig(props);
         Producer<String, String> producer = new Producer<String, String>(config);
 
-        try (BufferedReader br = new BufferedReader(new FileReader("/media/sf_Download/ipinyou/window/clk.20130607.txt")))
-        {
+        try (BufferedReader br = new BufferedReader(new FileReader("/media/sf_Download/ipinyou/window/clk.20130607.txt"))) {
 
             String currentLine;
             int numLines = rnd.nextInt(10) + 1;
