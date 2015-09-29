@@ -1,42 +1,6 @@
 package org.marksup.engine.consumers;
 
-import static org.apache.spark.sql.functions.callUDF;
-import static org.marksup.engine.utils.MapperConstants.MappingSchemas.AD_EXCH_SCHEMA;
-import static org.marksup.engine.utils.MapperConstants.MappingSchemas.BID_SCHEMA;
-import static org.marksup.engine.utils.MapperConstants.MappingSchemas.CITY_SCHEMA;
-import static org.marksup.engine.utils.MapperConstants.MappingSchemas.LOG_TYPE_SCHEMA;
-import static org.marksup.engine.utils.MapperConstants.MappingSchemas.STATE_SCHEMA;
-import static org.marksup.engine.utils.MapperConstants.SchemaFields.AD_EXCH_ID;
-import static org.marksup.engine.utils.MapperConstants.SchemaFields.CITY_ID;
-import static org.marksup.engine.utils.MapperConstants.SchemaFields.CITY_LATITUDE;
-import static org.marksup.engine.utils.MapperConstants.SchemaFields.CITY_LONGITUDE;
-import static org.marksup.engine.utils.MapperConstants.SchemaFields.COORDINATES;
-import static org.marksup.engine.utils.MapperConstants.SchemaFields.LOG_TYPE_ID;
-import static org.marksup.engine.utils.MapperConstants.SchemaFields.REGION;
-import static org.marksup.engine.utils.MapperConstants.SchemaFields.STATE_ID;
-import static org.marksup.engine.utils.MapperConstants.SchemaFields.UA_BROWSER;
-import static org.marksup.engine.utils.MapperConstants.SchemaFields.UA_BROWSERVERSION;
-import static org.marksup.engine.utils.MapperConstants.SchemaFields.UA_BROWSERVERSION_MAJOR;
-import static org.marksup.engine.utils.MapperConstants.SchemaFields.UA_BROWSERVERSION_MINOR;
-import static org.marksup.engine.utils.MapperConstants.SchemaFields.UA_BROWSER_GROUP;
-import static org.marksup.engine.utils.MapperConstants.SchemaFields.UA_BROWSER_MANUFACTURER;
-import static org.marksup.engine.utils.MapperConstants.SchemaFields.UA_BROWSER_RENDERING_ENGINE;
-import static org.marksup.engine.utils.MapperConstants.SchemaFields.UA_ID;
-import static org.marksup.engine.utils.MapperConstants.SchemaFields.UA_OS;
-import static org.marksup.engine.utils.MapperConstants.SchemaFields.UA_OS_DEVICE;
-import static org.marksup.engine.utils.MapperConstants.SchemaFields.UA_OS_GROUP;
-import static org.marksup.engine.utils.MapperConstants.SchemaFields.UA_OS_MANUFACTURER;
-import static org.marksup.engine.utils.MapperConstants.SchemaFields.UA_OS_NAME;
-import static org.marksup.engine.utils.MapperConstants.SchemaFields.USER_AGENT;
-import static org.marksup.engine.utils.MapperConstants.SchemaFields.USER_TAGS;
-import static org.marksup.engine.utils.MapperConstants.SchemaFields.USER_TAGS_ARRAY;
-
-import java.nio.file.Paths;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.stream.Collectors;
-
+import kafka.serializer.StringDecoder;
 import org.apache.commons.configuration.CompositeConfiguration;
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.configuration.PropertiesConfiguration;
@@ -55,16 +19,23 @@ import org.apache.spark.streaming.Durations;
 import org.apache.spark.streaming.api.java.JavaPairInputDStream;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
 import org.apache.spark.streaming.kafka.KafkaUtils;
-import org.elasticsearch.spark.rdd.api.java.JavaEsSpark;
 import org.marksup.engine.spark.sql.udf.ParseCoordinates;
 import org.marksup.engine.spark.sql.udf.ParseUserAgentString;
 import org.marksup.engine.spark.sql.udf.ParseUserTagsArray;
 
-import kafka.serializer.StringDecoder;
+import java.nio.file.Paths;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.stream.Collectors;
+
+import static org.apache.spark.sql.functions.callUDF;
+import static org.marksup.engine.utils.MapperConstants.MappingSchemas.*;
+import static org.marksup.engine.utils.MapperConstants.SchemaFields.*;
 
 public class KafkaSparkEsFlow {
     private static final Logger log = Logger.getLogger(KafkaSparkEsFlow.class);
-    private static final String dictDir = "/media/sf_Download/ipinyou/dicts/";
+    private static final String dictDir = "/media/sf_Download/data/mors/new_dicts";
 
     public static void main(String[] args) throws ConfigurationException {
         KafkaSparkEsFlow workflow = new KafkaSparkEsFlow();
@@ -202,7 +173,7 @@ public class KafkaSparkEsFlow {
 
             log.info("PARSED DATA");
             parsedBidDf.show();
-            JavaEsSpark.saveJsonToEs(parsedBidDf.toJSON().toJavaRDD(), esIndex);
+//            JavaEsSpark.saveJsonToEs(parsedBidDf.toJSON().toJavaRDD(), esIndex);
 
             return null;
         });

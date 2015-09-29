@@ -5,10 +5,10 @@ import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
 
-import static org.marksup.engine.utils.MapperConstants.SchemaFields.*;
-
 import java.util.Arrays;
 import java.util.stream.Collectors;
+
+import static org.marksup.engine.utils.MapperConstants.SchemaFields.*;
 
 public class MapperConstants {
     public enum SchemaFields {
@@ -68,9 +68,9 @@ public class MapperConstants {
         UA_BROWSER_MANUFACTURER("ua_browser_manufacturer", DataTypes.StringType, true),
         UA_BROWSER_RENDERING_ENGINE("ua_browser_rendering_engine", DataTypes.StringType, true),
 
-        UA_BROWSERVERSION("ua_browserVersion", DataTypes.StringType, true),
-        UA_BROWSERVERSION_MINOR("ua_browserVersion_minor", DataTypes.StringType, true),
-        UA_BROWSERVERSION_MAJOR("ua_browserVersion_major", DataTypes.StringType, true),
+        UA_BROWSERVERSION("ua_browser_version", DataTypes.StringType, true),
+        UA_BROWSERVERSION_MINOR("ua_browser_version_minor", DataTypes.StringType, true),
+        UA_BROWSERVERSION_MAJOR("ua_browser_version_major", DataTypes.StringType, true),
 
         UA_ID("ua_id", DataTypes.StringType, true),
 

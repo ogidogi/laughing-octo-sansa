@@ -9,8 +9,8 @@ import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.sql.DataFrame;
 import org.apache.spark.sql.SQLContext;
+import org.apache.spark.sql.SaveMode;
 import org.apache.spark.sql.types.DataTypes;
-import org.elasticsearch.spark.rdd.api.java.JavaEsSpark;
 import org.marksup.engine.spark.sql.udf.ParseCoordinates;
 import org.marksup.engine.spark.sql.udf.ParseUserAgentString;
 import org.marksup.engine.utils.MapperConstants;
@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.HashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -29,17 +30,25 @@ import static org.marksup.engine.utils.MapperConstants.SchemaFields.*;
 
 public class BiddingLogWorkflow {
     private static final Logger log = Logger.getLogger(BiddingLogWorkflow.class);
-    private static final String dictDir = "/media/sf_Download/ipinyou/new_dicts";
+//    private static final String dictDir = "/media/sf_Download/ipinyou/new_dicts";
+//    private static final String dictDir = "/media/sf_Download/data/iPinYou/ipinyou.contest.dataset_unpacked/training2nd/dic";
+    private static final String dictDir = "/media/sf_Download/data/mors/new_dicts";
 
     public static void main(String[] args) throws ConfigurationException {
         log.setLevel(Level.DEBUG);
 
         CompositeConfiguration conf = new CompositeConfiguration();
         conf.addConfiguration(new PropertiesConfiguration("kafka.properties"));
+        conf.addConfiguration(new PropertiesConfiguration("cassandra.properties"));
         conf.addConfiguration(new PropertiesConfiguration("spark.properties"));
         conf.addConfiguration(new PropertiesConfiguration("es.properties"));
 
-        Path filePath = Paths.get("/media/sf_Download/ipinyou/new");
+//        Path filePath = Paths.get("/media/sf_Download/ipinyou/new");
+//        Path filePath = Paths.get("/media/sf_Download/data/iPinYou/ipinyou.contest.dataset_unpacked/training2nd/data");
+
+
+//        Path filePath = Paths.get("/media/sf_Download/data/mors/new");
+        Path filePath = Paths.get("/media/sf_Download/data/mors/cassandra_test"); // Cassandra TEST
         String esIdxSuffix = "log_%s/bid";
 
         BiddingLogWorkflow wf = new BiddingLogWorkflow();
@@ -75,7 +84,12 @@ public class BiddingLogWorkflow {
     public void runBatch(CompositeConfiguration conf, Path filePath, String esIdxSuffix) throws IOException {
         SparkConf sparkConf = new SparkConf().setAppName("BATCH_BIDDING_LOG_STORE_TO_ES").setMaster(conf.getString("spark.master"))
                 .set("spark.serializer", conf.getString("spark.serializer"))
-                .set("es.index.auto.create", conf.getString("es.index.auto.create"));
+                .set("es.index.auto.create", conf.getString("es.index.auto.create"))
+                .set("spark.cassandra.connection.host", conf.getString("cassandra.database.node"));
+
+        HashMap<String, String> cassandraParams = new HashMap<>();
+        cassandraParams.put("table", "predict_kafka_raw");
+        cassandraParams.put("keyspace", "test");
 
         JavaSparkContext jsc = new JavaSparkContext(sparkConf);
         SQLContext sqlContext = new SQLContext(jsc);
@@ -122,7 +136,8 @@ public class BiddingLogWorkflow {
                         .join(stateDf, cityDf.col(STATE_ID.getName()).equalTo(stateDf.col(STATE_ID.getName())), "left")
                         .join(keywordDf, bidLogDf.col(USER_TAGS.getName()).equalTo(keywordDf.col(KEYWORD_ID.getName())), "left")
                         .withColumn(COORDINATES.getName(), callUDF(new ParseCoordinates(), DataTypes.createArrayType(DataTypes.FloatType),
-                                cityDf.col(CITY_LATITUDE.getName()), cityDf.col(CITY_LONGITUDE.getName())));
+                                cityDf.col(CITY_LATITUDE.getName()), cityDf.col(CITY_LONGITUDE.getName())))
+                        .filter(bidLogDf.col(IPINYOU_ID.getName()).notEqual("null"));
 
                 DataFrame searchCompatibleDf = parsedBidLogDf
                         .select(
@@ -134,7 +149,7 @@ public class BiddingLogWorkflow {
                                 parsedBidLogDf.col(AD_SLOT_WIDTH.getName()), parsedBidLogDf.col(AD_SLOT_HEIGHT.getName()),
                                 parsedBidLogDf.col(AD_SLOT_VISIBILITY.getName()), parsedBidLogDf.col(AD_SLOT_FORMAT.getName()),
                                 parsedBidLogDf.col(AD_SLOT_FLOOR_PRICE.getName()), parsedBidLogDf.col(CREATIVE_ID.getName()),
-                                parsedBidLogDf.col(AD_SLOT_WIDTH.getName()), parsedBidLogDf.col(ADVERTISER_ID.getName()),
+                                parsedBidLogDf.col(BIDDING_PRICE.getName()), parsedBidLogDf.col(ADVERTISER_ID.getName()),
                                 parsedBidLogDf.col(PAYING_PRICE.getName()),
                                 // ADX
                                 parsedBidLogDf.col(AD_EXCH_NAME.getName()), parsedBidLogDf.col(AD_EXCH_DESC.getName()),
@@ -183,11 +198,29 @@ public class BiddingLogWorkflow {
                         .withColumn(UA_OS_MANUFACTURER.getName(), callUDF(new ParseUserAgentString(UA_OS_MANUFACTURER),
                                 DataTypes.StringType, bidLogDf.col(USER_AGENT.getName())));
 
+//                searchCompatibleDf.printSchema();
                 searchCompatibleDf.show();
 
+
+
+                if (searchCompatibleDf.count() > 0) {
+                    log.info(String.format("Load %s to Cassandra", fileName));
+                    searchCompatibleDf
+                            .write()
+                            .format("org.apache.spark.sql.cassandra")
+                            .options(cassandraParams)
+                            .mode(SaveMode.Overwrite)
+                            .save();
+                }
+
                 // Save data to ES
-                log.info(String.format("Saving %s to ES: %s", fileName, esIdx));
-                JavaEsSpark.saveJsonToEs(searchCompatibleDf.toJSON().toJavaRDD(), esIdx);
+//                String path2save = "/media/sf_Download/data/mors/parsed";
+//                String file2save = path2save + "/" + fileName + ".parsed";
+//                log.info(String.format("Saving %s to File: %s", fileName, file2save));
+//                searchCompatibleDf.write().format("com.databricks.spark.csv").save(file2save);
+
+//                log.info(String.format("Saving %s to ES: %s", fileName, esIdx));
+//                JavaEsSpark.saveJsonToEs(searchCompatibleDf.toJSON().toJavaRDD(), esIdx);
             }
         });
     }

@@ -6,7 +6,7 @@ import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
 
-public class ParseCoordinates extends AbstractFunction2<Float, Float, List<Float>>implements Serializable {
+public class ParseCoordinates extends AbstractFunction2<Float, Float, List<Float>> implements Serializable {
 
     private static final long serialVersionUID = -1494997808699658439L;
 
