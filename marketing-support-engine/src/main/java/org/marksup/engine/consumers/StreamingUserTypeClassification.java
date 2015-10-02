@@ -30,6 +30,7 @@ import scala.Tuple2;
 import water.Key;
 import water.api.Handler;
 import water.exceptions.H2OIllegalArgumentException;
+import water.fvec.H2OFrame;
 import water.serial.ObjectTreeBinarySerializer;
 import water.util.FileUtils;
 
@@ -37,7 +38,9 @@ public class StreamingUserTypeClassification {
     private static final Logger log = Logger.getLogger(StreamingUserTypeClassification.class);
     private static final String craigslistJobTitles = "/mnt/data/workspace/laughing-octo-sansa/data/craigslistJobTitles.csv";
     private static final String h2oModelFolder = "/mnt/data/workspace/laughing-octo-sansa/data/h2oModel";
-    private static final String word2VecModelFolder = "/mnt/data/workspace/laughing-octo-sansa/data/word2VecModel";
+//    private static final String h2oModelFolder1 = "/mnt/data/workspace/laughing-octo-sansa/data/deep_learning_model";
+    private static final String h2oModelFolder1 = "/mnt/data/workspace/laughing-octo-sansa/data/deep_learning_model2";
+//    private static final String word2VecModelFolder = "/mnt/data/workspace/laughing-octo-sansa/data/word2VecModel";
 
     public static void main(String[] args) throws ConfigurationException {
         StreamingUserTypeClassification workflow = new StreamingUserTypeClassification();
@@ -83,10 +86,12 @@ public class StreamingUserTypeClassification {
 
         CraigslistJobTitlesApp staticApp = new CraigslistJobTitlesApp(craigslistJobTitles, sp.sc(), sqlContext, h2oContext);
         try {
-            // final Tuple2<Model<?, ?, ?>, Word2VecModel> tModel = staticApp.buildModels(craigslistJobTitles, "initialModel");
-            final Tuple2<Model<?, ?, ?>, Word2VecModel> tModel = importModels(h2oModelFolder, word2VecModelFolder, sp.sc());
-            final String modelId = tModel._1()._key.toString();
-            final Word2VecModel w2vModel = tModel._2();
+             final Tuple2<Model<?, ?, ?>, Word2VecModel> tModel = staticApp.buildModels(craigslistJobTitles, "initialModel");
+//            final Tuple2<Model<?, ?, ?>, Word2VecModel> tModel = importModels(h2oModelFolder, word2VecModelFolder, sp.sc());
+            final Model<?, ?, ?> tModel1 = importH2OModel(h2oModelFolder1);
+
+//            final String modelId = tModel._1()._key.toString();
+//            final Word2VecModel w2vModel = tModel._2();
             // exportModels(tModel._1(), w2vModel, sp.sc());
 
             // Create direct kafka stream with brokers and topics
@@ -94,9 +99,14 @@ public class StreamingUserTypeClassification {
                     StringDecoder.class, StringDecoder.class, kafkaParams, topicsSet);
 
             // Classify incoming messages
+//            messages.map(mesage -> mesage._2()).filter(str -> !str.isEmpty())
+//                    .map(jobTitle -> staticApp.classify(jobTitle, modelId, w2vModel))
+//                    .map(pred -> new StringBuilder(100).append('\"').append(pred._1()).append("\" = ").append(Arrays.toString(pred._2())))
+//                    .print();
+
             messages.map(mesage -> mesage._2()).filter(str -> !str.isEmpty())
-                    .map(jobTitle -> staticApp.classify(jobTitle, modelId, w2vModel))
-                    .map(pred -> new StringBuilder(100).append('\"').append(pred._1()).append("\" = ").append(Arrays.toString(pred._2())))
+                    .map(jobTitle -> tModel1.score(new H2OFrame(jobTitle)))
+                    .map(pred -> pred._names)
                     .print();
 
             jssc.start();
@@ -132,7 +142,7 @@ public class StreamingUserTypeClassification {
         }
     }
 
-    public Model importH2OModel(String dir) {
+    public static Model importH2OModel(String dir) {
         Model model = null;
         try {
             List<Key> importedKeys = new ObjectTreeBinarySerializer().load(FileUtils.getURI(dir));

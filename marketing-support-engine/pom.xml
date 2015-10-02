@@ -74,20 +74,6 @@
 			<version>1.10</version>
 		</dependency>
 
-		<!-- Google Json -->
-		<dependency>
-			<groupId>com.google.code.gson</groupId>
-			<artifactId>gson</artifactId>
-			<version>2.3.1</version>
-		</dependency>
-
-		<!-- Http Client -->
-		<dependency>
-			<groupId>org.apache.httpcomponents</groupId>
-			<artifactId>httpclient</artifactId>
-			<version>4.5.1</version>
-		</dependency>
-
 		<!-- Elasticsearch -->
 		<dependency>
 			<groupId>org.elasticsearch</groupId>
@@ -96,7 +82,7 @@
 		</dependency>
 		<dependency>
 			<groupId>org.elasticsearch</groupId>
-			<artifactId>elasticsearch-spark_2.10</artifactId>
+			<artifactId>elasticsearch-spark_2.11</artifactId>
 			<version>2.1.1</version>
 			<exclusions>
 				<exclusion>
@@ -113,70 +99,60 @@
 		<!-- Cassandra -->
 		<dependency>
 			<groupId>com.datastax.spark</groupId>
-			<artifactId>spark-cassandra-connector-java_2.10</artifactId>
-			<!--<version>1.4.0</version>-->
+			<artifactId>spark-cassandra-connector-java_2.11</artifactId>
+			<!--<version>1.4.0</version> -->
 			<version>1.5.0-M1</version>
 		</dependency>
 
 		<!-- Kafka -->
 		<dependency>
 			<groupId>org.apache.kafka</groupId>
-			<artifactId>kafka_2.10</artifactId>
+			<artifactId>kafka_2.11</artifactId>
 			<version>0.8.2.2</version>
 		</dependency>
 
 		<!-- Spark -->
 		<dependency>
 			<groupId>org.apache.spark</groupId>
-			<artifactId>spark-core_2.10</artifactId>
-			<version>1.5.0</version>
+			<artifactId>spark-core_2.11</artifactId>
+			<version>1.5.1</version>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.spark</groupId>
-			<artifactId>spark-streaming_2.10</artifactId>
-			<version>1.5.0</version>
+			<artifactId>spark-streaming_2.11</artifactId>
+			<version>1.5.1</version>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.spark</groupId>
-			<artifactId>spark-streaming-kafka_2.10</artifactId>
-			<version>1.5.0</version>
+			<artifactId>spark-streaming-kafka_2.11</artifactId>
+			<version>1.5.1</version>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.spark</groupId>
-			<artifactId>spark-streaming-twitter_2.10</artifactId>
-			<version>1.5.0</version>
+			<artifactId>spark-streaming-twitter_2.11</artifactId>
+			<version>1.5.1</version>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.spark</groupId>
-			<artifactId>spark-sql_2.10</artifactId>
-			<version>1.5.0</version>
+			<artifactId>spark-sql_2.11</artifactId>
+			<version>1.5.1</version>
 		</dependency>
 		<dependency>
 			<groupId>com.databricks</groupId>
-			<artifactId>spark-csv_2.10</artifactId>
+			<artifactId>spark-csv_2.11</artifactId>
 			<version>1.2.0</version>
 		</dependency>
 
 		<!-- Sparkling Water -->
 		<dependency>
 			<groupId>ai.h2o</groupId>
-			<artifactId>h2o-core</artifactId>
-			<version>3.2.0.5</version>
-		</dependency>
-		<dependency>
-			<groupId>ai.h2o</groupId>
-			<artifactId>h2o-algos</artifactId>
-			<version>3.2.0.5</version>
-		</dependency>
-		<dependency>
-			<groupId>ai.h2o</groupId>
 			<artifactId>sparkling-water-core_2.10</artifactId>
-			<version>1.4.4</version>
+			<version>1.5.2</version>
 		</dependency>
 		<dependency>
 			<groupId>ai.h2o</groupId>
 			<artifactId>sparkling-water-examples_2.10</artifactId>
-			<version>1.4.4</version>
+			<version>1.5.2</version>
 		</dependency>
 
 		<!-- Utils -->
@@ -194,8 +170,16 @@
 
 	<repositories>
 		<repository>
-			<id>cloudera</id>
-			<url>https://repository.cloudera.com/artifactory/cloudera-repos/</url>
+			<id>Central Repository</id>
+			<url>https://repo1.maven.org/maven2</url>
+		</repository>
+		<repository>
+			<id>Cloudera Repository</id>
+			<url>https://repository.cloudera.com/artifactory/cloudera-repos</url>
+		</repository>
+		<repository>
+			<id>Jitpack Repository</id>
+			<url>https://jitpack.io</url>
 		</repository>
 	</repositories>
 </project>

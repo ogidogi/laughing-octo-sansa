@@ -1,11 +1,11 @@
-import java.io.File
+import java.io.{File, FileOutputStream, ObjectOutputStream}
 
 import hex.deeplearning.{DeepLearning, DeepLearningParameters}
-import org.apache.spark.h2o.{H2OContext, StringHolder, DoubleHolder}
+import org.apache.spark.h2o.{DoubleHolder, H2OContext, StringHolder}
 import org.apache.spark.{SparkConf, SparkContext, SparkFiles}
 import water.fvec.H2OFrame
 
-object BidDroplet {
+object DeepLearningDroplet {
   def main(args: Array[String]): Unit = {
     // Create Spark Context
     val conf = new SparkConf()
@@ -18,7 +18,7 @@ object BidDroplet {
     import h2oContext._
 
     // Register file to be available on all nodes
-    sc.addFile(new File("/mnt/data/workspace/laughing-octo-sansa/data/final_train.txt").getAbsolutePath)
+    sc.addFile(new File("/media/sf_Download/data/iPinYou/ipinyou.contest.dataset_unpacked/training2nd/model/dlmodel4_files/final_train.txt").getAbsolutePath)
 
     // Load data and parse it via h2o parser
     val bidTable = new H2OFrame(new File(SparkFiles.get("final_train.txt")))
@@ -28,10 +28,32 @@ object BidDroplet {
     // Configure Deep Learning algorithm
     val dlParams = new DeepLearningParameters()
     dlParams._train = bidTable
+    dlParams._epochs = 5
     dlParams._response_column = 'sitelead
 
     val dl = new DeepLearning(dlParams)
     val dlModel = dl.trainModel.get
+
+    val fos = new FileOutputStream("/media/sf_Download/data/iPinYou/ipinyou.contest.dataset_unpacked/training2nd/model/mors_folder/model.file")
+    val oos = new ObjectOutputStream(fos)
+    oos.writeObject(dlModel)
+    oos.close()
+
+//    def exportH2OModel(exportModel: Model[_ <: Model, _ <: Model.Parameters, _ <: Model.Output], dir: String) {
+//      val model: Model[_ <: Model, _ <: Model.Parameters, _ <: Model.Output] = Handler.getFromDKV("model_id", exportModel._key, classOf[Model[_ <: Model[M, P, O], _ <: Model.Parameters, _ <: Model.Output]])
+//
+//      val keysToExport: List[Key[_ <: Keyed[_]]] = new LinkedList[Key[_ <: Keyed[_]]]
+//      keysToExport.add(model._key)
+//      keysToExport.addAll(model.getPublishedKeys)
+//      try {
+//        new ObjectTreeBinarySerializer().save(keysToExport, FileUtils.getURI(dir))
+//      }
+//      catch {
+//        case e: IOException => {
+//          throw new H2OIllegalArgumentException("dir", "exportModel", e)
+//        }
+//      }
+//    }
 
     // Make prediction on train data
     val predict = dlModel.score(bidTable)('predict)
@@ -66,3 +88,4 @@ object BidDroplet {
        """.stripMargin)
   }
 }
+

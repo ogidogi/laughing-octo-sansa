@@ -35,6 +35,7 @@ CREATE TABLE test.predict_kafka_raw (
     ,state_population               TEXT
     ,state_gsp              TEXT
     ,keyword_name               TEXT
+    ,prob       TEXT
     ,ua_browser             TEXT
     ,ua_browser_group               TEXT
     ,ua_browser_manufacturer            TEXT

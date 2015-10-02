@@ -1,6 +1,77 @@
 package org.marksup.engine.workflows;
 
-import kafka.serializer.StringDecoder;
+import static org.apache.spark.sql.functions.callUDF;
+import static org.apache.spark.sql.functions.coalesce;
+import static org.marksup.engine.utils.MapperConstants.MappingSchemas.AD_EXCH_SCHEMA;
+import static org.marksup.engine.utils.MapperConstants.MappingSchemas.BID_LOG_SCHEMA;
+import static org.marksup.engine.utils.MapperConstants.MappingSchemas.CITY_SCHEMA;
+import static org.marksup.engine.utils.MapperConstants.MappingSchemas.LOG_TYPE_SCHEMA;
+import static org.marksup.engine.utils.MapperConstants.MappingSchemas.SITE_PAGES_SCHEMA;
+import static org.marksup.engine.utils.MapperConstants.MappingSchemas.STATE_SCHEMA;
+import static org.marksup.engine.utils.MapperConstants.MappingSchemas.USER_PROFILE_TAGS_SCHEMA;
+import static org.marksup.engine.utils.MapperConstants.SchemaFields.ADVERTISER_ID;
+import static org.marksup.engine.utils.MapperConstants.SchemaFields.AD_EXCH_DESC;
+import static org.marksup.engine.utils.MapperConstants.SchemaFields.AD_EXCH_ID;
+import static org.marksup.engine.utils.MapperConstants.SchemaFields.AD_EXCH_NAME;
+import static org.marksup.engine.utils.MapperConstants.SchemaFields.AD_SLOT_FLOOR_PRICE;
+import static org.marksup.engine.utils.MapperConstants.SchemaFields.AD_SLOT_FORMAT;
+import static org.marksup.engine.utils.MapperConstants.SchemaFields.AD_SLOT_HEIGHT;
+import static org.marksup.engine.utils.MapperConstants.SchemaFields.AD_SLOT_ID;
+import static org.marksup.engine.utils.MapperConstants.SchemaFields.AD_SLOT_VISIBILITY;
+import static org.marksup.engine.utils.MapperConstants.SchemaFields.AD_SLOT_WIDTH;
+import static org.marksup.engine.utils.MapperConstants.SchemaFields.ANONYMOUS_URL_ID;
+import static org.marksup.engine.utils.MapperConstants.SchemaFields.BIDDING_PRICE;
+import static org.marksup.engine.utils.MapperConstants.SchemaFields.BID_ID;
+import static org.marksup.engine.utils.MapperConstants.SchemaFields.CITY_AREA;
+import static org.marksup.engine.utils.MapperConstants.SchemaFields.CITY_DENSITY;
+import static org.marksup.engine.utils.MapperConstants.SchemaFields.CITY_ID;
+import static org.marksup.engine.utils.MapperConstants.SchemaFields.CITY_LATITUDE;
+import static org.marksup.engine.utils.MapperConstants.SchemaFields.CITY_LONGITUDE;
+import static org.marksup.engine.utils.MapperConstants.SchemaFields.CITY_NAME;
+import static org.marksup.engine.utils.MapperConstants.SchemaFields.CITY_POPULATION;
+import static org.marksup.engine.utils.MapperConstants.SchemaFields.COORDINATES;
+import static org.marksup.engine.utils.MapperConstants.SchemaFields.CREATIVE_ID;
+import static org.marksup.engine.utils.MapperConstants.SchemaFields.DOMAIN;
+import static org.marksup.engine.utils.MapperConstants.SchemaFields.IP;
+import static org.marksup.engine.utils.MapperConstants.SchemaFields.IPINYOU_ID;
+import static org.marksup.engine.utils.MapperConstants.SchemaFields.KEYWORD_ID;
+import static org.marksup.engine.utils.MapperConstants.SchemaFields.KEYWORD_NAME;
+import static org.marksup.engine.utils.MapperConstants.SchemaFields.LOG_TYPE_ID;
+import static org.marksup.engine.utils.MapperConstants.SchemaFields.LOG_TYPE_NAME;
+import static org.marksup.engine.utils.MapperConstants.SchemaFields.PAYING_PRICE;
+import static org.marksup.engine.utils.MapperConstants.SchemaFields.SITE_PAGE_ID;
+import static org.marksup.engine.utils.MapperConstants.SchemaFields.SITE_PAGE_TAG;
+import static org.marksup.engine.utils.MapperConstants.SchemaFields.STATE_GSP;
+import static org.marksup.engine.utils.MapperConstants.SchemaFields.STATE_ID;
+import static org.marksup.engine.utils.MapperConstants.SchemaFields.STATE_NAME;
+import static org.marksup.engine.utils.MapperConstants.SchemaFields.STATE_POPULATION;
+import static org.marksup.engine.utils.MapperConstants.SchemaFields.TIMESTAMP;
+import static org.marksup.engine.utils.MapperConstants.SchemaFields.UA_BROWSER;
+import static org.marksup.engine.utils.MapperConstants.SchemaFields.UA_BROWSERVERSION;
+import static org.marksup.engine.utils.MapperConstants.SchemaFields.UA_BROWSERVERSION_MAJOR;
+import static org.marksup.engine.utils.MapperConstants.SchemaFields.UA_BROWSERVERSION_MINOR;
+import static org.marksup.engine.utils.MapperConstants.SchemaFields.UA_BROWSER_GROUP;
+import static org.marksup.engine.utils.MapperConstants.SchemaFields.UA_BROWSER_MANUFACTURER;
+import static org.marksup.engine.utils.MapperConstants.SchemaFields.UA_BROWSER_RENDERING_ENGINE;
+import static org.marksup.engine.utils.MapperConstants.SchemaFields.UA_ID;
+import static org.marksup.engine.utils.MapperConstants.SchemaFields.UA_OS;
+import static org.marksup.engine.utils.MapperConstants.SchemaFields.UA_OS_DEVICE;
+import static org.marksup.engine.utils.MapperConstants.SchemaFields.UA_OS_GROUP;
+import static org.marksup.engine.utils.MapperConstants.SchemaFields.UA_OS_MANUFACTURER;
+import static org.marksup.engine.utils.MapperConstants.SchemaFields.UA_OS_NAME;
+import static org.marksup.engine.utils.MapperConstants.SchemaFields.URL;
+import static org.marksup.engine.utils.MapperConstants.SchemaFields.USER_AGENT;
+import static org.marksup.engine.utils.MapperConstants.SchemaFields.USER_PROFILE_TAG_ID;
+import static org.marksup.engine.utils.MapperConstants.SchemaFields.USER_PROFILE_TAG_VALUE;
+import static org.marksup.engine.utils.MapperConstants.SchemaFields.USER_TAGS;
+
+import java.io.IOException;
+import java.nio.file.Paths;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.stream.Collectors;
+
 import org.apache.commons.configuration.CompositeConfiguration;
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.configuration.PropertiesConfiguration;
@@ -9,6 +80,7 @@ import org.apache.log4j.Logger;
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
+import org.apache.spark.h2o.H2OContext;
 import org.apache.spark.sql.DataFrame;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SQLContext;
@@ -19,24 +91,19 @@ import org.apache.spark.streaming.Durations;
 import org.apache.spark.streaming.api.java.JavaPairInputDStream;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
 import org.apache.spark.streaming.kafka.KafkaUtils;
+import org.marksup.engine.consumers.StreamingUserTypeClassification;
 import org.marksup.engine.spark.sql.udf.ParseCoordinates;
 import org.marksup.engine.spark.sql.udf.ParseUserAgentString;
 
-import java.nio.file.Paths;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.stream.Collectors;
-
-import static org.apache.spark.sql.functions.callUDF;
-import static org.apache.spark.sql.functions.coalesce;
-import static org.marksup.engine.utils.MapperConstants.MappingSchemas.*;
-import static org.marksup.engine.utils.MapperConstants.SchemaFields.*;
+import hex.Model;
+import kafka.serializer.StringDecoder;
 
 public class PredictionFlow {
     private static final Logger log = Logger.getLogger(PredictionFlow.class);
     private static final String dictDir = "/media/sf_Download/data/mors/new_dicts";
-
+    // private static final String h2oModelFolder = "/mnt/data/workspace/laughing-octo-sansa/data/deep_learning_model3";
+    private static final String h2oModelFolder = "/media/sf_Download/data/iPinYou/ipinyou.contest.dataset_unpacked/training2nd/model/dlmodel7";
+    // private static final SendOverSocket func = new SendOverSocket();
 
     public static void main(String[] args) throws ConfigurationException {
         PredictionFlow workflow = new PredictionFlow();
@@ -46,6 +113,7 @@ public class PredictionFlow {
         conf.addConfiguration(new PropertiesConfiguration("kafka.properties"));
         conf.addConfiguration(new PropertiesConfiguration("spark.properties"));
         conf.addConfiguration(new PropertiesConfiguration("cassandra.properties"));
+        conf.addConfiguration(new PropertiesConfiguration("es.properties"));
 
         try {
             workflow.run(conf);
@@ -55,7 +123,9 @@ public class PredictionFlow {
 
     }
 
-    public void run(CompositeConfiguration conf) {
+    public void run(CompositeConfiguration conf) throws IOException, ClassNotFoundException {
+        String esIndexName = "stream/bid";
+
         // Kafka props
         String kafkaBrokers = conf.getString("metadata.broker.list");
         String topics = conf.getString("consumer.topic");
@@ -75,23 +145,62 @@ public class PredictionFlow {
         cassandraParams.put("keyspace", "test");
 
         SparkConf sparkConf = new SparkConf().setAppName("PREDICTION_FLOW").setMaster(sparkMaster)
-                .set("spark.cassandra.connection.host", cassandraDbNode);
+                .set("spark.cassandra.connection.host", cassandraDbNode)
+                .set("es.index.auto.create", conf.getString("es.index.auto.create"));
 
         JavaSparkContext jsc = new JavaSparkContext(sparkConf);
-
-//        SQLContext sqlContext = new SQLContext(jsc);
         JavaStreamingContext jssc = new JavaStreamingContext(jsc, Durations.seconds(sparkStreamDuration));
+        SQLContext sqlCon = SQLContext.getOrCreate(jsc.sc());
+        H2OContext h2oContext = new H2OContext(jsc.sc());
+        h2oContext.start();
 
         HashSet<String> topicsSet = new HashSet<>(Arrays.asList(topics.split(",")));
         HashMap<String, String> kafkaParams = new HashMap<>();
         kafkaParams.put("metadata.broker.list", kafkaBrokers);
         kafkaParams.put("auto.offset.reset", fromOffset);
 
+        // Import model
+        final Model<?, ?, ?> dlModel = StreamingUserTypeClassification.importH2OModel(h2oModelFolder);
+
         // Create direct kafka stream with brokers and topics
         JavaPairInputDStream<String, String> messages = KafkaUtils.createDirectStream(jssc, String.class, String.class, StringDecoder.class,
                 StringDecoder.class, kafkaParams, topicsSet);
-
         messages.print();
+
+        log.debug("Create Data Frames dictionaries from CSV");
+        boolean isDictHeader = true;
+        DataFrame adExchangeDf = BiddingLogWorkflow.getDataFrameFromCsv(sqlCon, AD_EXCH_SCHEMA, Paths.get(dictDir, "ad.exchange.txt"),
+                isDictHeader);
+        DataFrame logTypeDf = BiddingLogWorkflow.getDataFrameFromCsv(sqlCon, LOG_TYPE_SCHEMA, Paths.get(dictDir, "log.type.txt"),
+                isDictHeader);
+        DataFrame cityDf = BiddingLogWorkflow.getDataFrameFromCsv(sqlCon, CITY_SCHEMA, Paths.get(dictDir, "city.us.txt"), isDictHeader);
+        DataFrame stateDf = BiddingLogWorkflow.getDataFrameFromCsv(sqlCon, STATE_SCHEMA, Paths.get(dictDir, "states.us.txt"), isDictHeader);
+        DataFrame sitePageDf = BiddingLogWorkflow.getDataFrameFromCsv(sqlCon, SITE_PAGES_SCHEMA, Paths.get(dictDir, "site.pages.us.txt"),
+                isDictHeader);
+        DataFrame userProfileTagDf = BiddingLogWorkflow.getDataFrameFromCsv(sqlCon, USER_PROFILE_TAGS_SCHEMA,
+                Paths.get(dictDir, "user.profile.tags.us.txt"), isDictHeader);
+
+        log.debug("Create Keyword dictionary");
+        DataFrame keywordDf = sitePageDf.select(sitePageDf.col(SITE_PAGE_ID.getName()), sitePageDf.col(SITE_PAGE_TAG.getName()))
+                .unionAll(userProfileTagDf.select(userProfileTagDf.col(USER_PROFILE_TAG_ID.getName()),
+                        userProfileTagDf.col(USER_PROFILE_TAG_VALUE.getName())))
+                .withColumnRenamed(SITE_PAGE_ID.getName(), KEYWORD_ID.getName())
+                .withColumnRenamed(SITE_PAGE_TAG.getName(), KEYWORD_NAME.getName());
+
+        DataFrame cassandraDf = sqlCon.read().format("org.apache.spark.sql.cassandra").options(cassandraParams).load();
+
+        log.debug("Cassandra DF");
+        // cassandraDf.show();
+
+        // Persist data
+        cassandraDf.persist();
+        adExchangeDf.persist();
+        logTypeDf.persist();
+        cityDf.persist();
+        stateDf.persist();
+        sitePageDf.persist();
+        userProfileTagDf.persist();
+        keywordDf.persist();
 
         messages.foreachRDD(rdd -> {
             SQLContext sqlContext = SQLContext.getOrCreate(rdd.context());
@@ -101,49 +210,27 @@ public class PredictionFlow {
                 return null;
             }
 
-            log.debug("Create Data Frames dictionaries from CSV");
-
-            boolean isDictHeader = true;
-            DataFrame adExchangeDf = BiddingLogWorkflow.getDataFrameFromCsv(sqlContext, AD_EXCH_SCHEMA, Paths.get(dictDir, "ad.exchange.txt"),
-                    isDictHeader);
-            DataFrame logTypeDf = BiddingLogWorkflow.getDataFrameFromCsv(sqlContext, LOG_TYPE_SCHEMA, Paths.get(dictDir, "log.type.txt"),
-                    isDictHeader);
-            DataFrame cityDf = BiddingLogWorkflow.getDataFrameFromCsv(sqlContext, CITY_SCHEMA, Paths.get(dictDir, "city.us.txt"), isDictHeader);
-            DataFrame stateDf = BiddingLogWorkflow.getDataFrameFromCsv(sqlContext, STATE_SCHEMA, Paths.get(dictDir, "states.us.txt"),
-                    isDictHeader);
-            DataFrame sitePageDf = BiddingLogWorkflow.getDataFrameFromCsv(sqlContext, SITE_PAGES_SCHEMA,
-                    Paths.get(dictDir, "site.pages.us.txt"), isDictHeader);
-            DataFrame userProfileTagDf = BiddingLogWorkflow.getDataFrameFromCsv(sqlContext, USER_PROFILE_TAGS_SCHEMA,
-                    Paths.get(dictDir, "user.profile.tags.us.txt"), isDictHeader);
-
-            log.debug("Create Keyword dictionary");
-            DataFrame keywordDf = sitePageDf.select(sitePageDf.col(SITE_PAGE_ID.getName()), sitePageDf.col(SITE_PAGE_TAG.getName()))
-                    .unionAll(userProfileTagDf.select(userProfileTagDf.col(USER_PROFILE_TAG_ID.getName()),
-                            userProfileTagDf.col(USER_PROFILE_TAG_VALUE.getName())))
-                    .withColumnRenamed(SITE_PAGE_ID.getName(), KEYWORD_ID.getName())
-                    .withColumnRenamed(SITE_PAGE_TAG.getName(), KEYWORD_NAME.getName());
-
-
             // Workaround since there is no automatic type conversion between Row and DF
             StructType kafkaStrSchema = DataTypes.createStructType(Arrays.stream(BID_LOG_SCHEMA.getSchema().fields())
                     .map(field -> DataTypes.createStructField(field.name(), DataTypes.StringType, field.nullable()))
                     .collect(Collectors.toList()));
 
             DataFrame kafkaDf = sqlContext.createDataFrame(rowRdd, kafkaStrSchema);
-//            kafkaDf.show();
+            // kafkaDf.show();
 
             log.info("Join with dictionaries");
             DataFrame joinedKafkaDf = kafkaDf
                     .join(adExchangeDf, kafkaDf.col(AD_EXCH_ID.getName()).equalTo(adExchangeDf.col(AD_EXCH_ID.getName())), "left")
                     .join(logTypeDf, kafkaDf.col(LOG_TYPE_ID.getName()).equalTo(logTypeDf.col(LOG_TYPE_ID.getName())), "left")
                     .join(cityDf, kafkaDf.col(CITY_ID.getName()).equalTo(cityDf.col(CITY_ID.getName())), "inner") // src data is messed a bit, so geo_point results in null -> 'inner' join is
-                            // workaround
+                    // workaround
                     .join(stateDf, cityDf.col(STATE_ID.getName()).equalTo(stateDf.col(STATE_ID.getName())), "left")
                     .join(keywordDf, kafkaDf.col(USER_TAGS.getName()).equalTo(keywordDf.col(KEYWORD_ID.getName())), "left")
                     .withColumn(COORDINATES.getName(), callUDF(new ParseCoordinates(), DataTypes.createArrayType(DataTypes.FloatType),
                             cityDf.col(CITY_LATITUDE.getName()), cityDf.col(CITY_LONGITUDE.getName())));
 
-//            joinedKafkaDf.show();
+            joinedKafkaDf.persist();
+            // joinedKafkaDf.show();
 
             DataFrame searchCompatibleDf = joinedKafkaDf
                     .select(
@@ -174,8 +261,7 @@ public class PredictionFlow {
                     .withColumn(UA_BROWSER.getName(),
                             callUDF(new ParseUserAgentString(UA_BROWSER), DataTypes.StringType, kafkaDf.col(USER_AGENT.getName())))
                     .withColumn(UA_BROWSER_GROUP.getName(),
-                            callUDF(new ParseUserAgentString(UA_BROWSER_GROUP), DataTypes.StringType,
-                                    kafkaDf.col(USER_AGENT.getName())))
+                            callUDF(new ParseUserAgentString(UA_BROWSER_GROUP), DataTypes.StringType, kafkaDf.col(USER_AGENT.getName())))
                     .withColumn(UA_BROWSER_MANUFACTURER.getName(),
                             callUDF(new ParseUserAgentString(UA_BROWSER_MANUFACTURER), DataTypes.StringType,
                                     kafkaDf.col(USER_AGENT.getName())))
@@ -183,8 +269,7 @@ public class PredictionFlow {
                             callUDF(new ParseUserAgentString(UA_BROWSER_RENDERING_ENGINE), DataTypes.StringType,
                                     kafkaDf.col(USER_AGENT.getName())))
                     .withColumn(UA_BROWSERVERSION.getName(),
-                            callUDF(new ParseUserAgentString(UA_BROWSERVERSION), DataTypes.StringType,
-                                    kafkaDf.col(USER_AGENT.getName())))
+                            callUDF(new ParseUserAgentString(UA_BROWSERVERSION), DataTypes.StringType, kafkaDf.col(USER_AGENT.getName())))
                     .withColumn(UA_BROWSERVERSION_MINOR.getName(),
                             callUDF(new ParseUserAgentString(UA_BROWSERVERSION_MINOR), DataTypes.StringType,
                                     kafkaDf.col(USER_AGENT.getName())))
@@ -201,69 +286,60 @@ public class PredictionFlow {
                             callUDF(new ParseUserAgentString(UA_OS_DEVICE), DataTypes.StringType, kafkaDf.col(USER_AGENT.getName())))
                     .withColumn(UA_OS_GROUP.getName(),
                             callUDF(new ParseUserAgentString(UA_OS_GROUP), DataTypes.StringType, kafkaDf.col(USER_AGENT.getName())))
-                    .withColumn(UA_OS_MANUFACTURER.getName(), callUDF(new ParseUserAgentString(UA_OS_MANUFACTURER),
-                            DataTypes.StringType, kafkaDf.col(USER_AGENT.getName())));
+                    .withColumn(UA_OS_MANUFACTURER.getName(),
+                            callUDF(new ParseUserAgentString(UA_OS_MANUFACTURER), DataTypes.StringType, kafkaDf.col(USER_AGENT.getName())));
 
+            searchCompatibleDf.persist();
             log.debug("Parsed DF");
             searchCompatibleDf.show();
-
-            DataFrame cassandraDf = sqlContext
-                    .read()
-                    .format("org.apache.spark.sql.cassandra")
-                    .options(cassandraParams)
-                    .load();
-
-            log.debug("Cassandra DF");
-            cassandraDf.show();
 
             log.debug("Joined DF");
             DataFrame sqlTblDf = searchCompatibleDf
                     .join(cassandraDf, searchCompatibleDf.col(IPINYOU_ID.getName()).equalTo(cassandraDf.col("ipinyou_id")), "leftouter")
                     .filter(searchCompatibleDf.col("timestamp").geq(cassandraDf.col("timestamp")))
-                    .select(
-                            searchCompatibleDf.col("ipinyou_id"),
-//                            searchCompatibleDf.col("*"),
-                            cassandraDf.col("timestamp").as("cass_ts"),
-                            cassandraDf.col("keyword_name").as("cass_kw_name"),
-                            cassandraDf.col("log_type_name").as("cass_log_type_name")
-                    )
-                    ;
+                    .select(searchCompatibleDf.col("ipinyou_id"),
+                            // searchCompatibleDf.col("*"),
+                            cassandraDf.col("timestamp").as("cass_ts"), cassandraDf.col("keyword_name").as("cass_kw_name"),
+                            cassandraDf.col("log_type_name").as("cass_log_type_name"));
 
             sqlTblDf.show();
 
             sqlTblDf.registerTempTable("unpivoted_table");
-            DataFrame df = sqlContext.sql(
-                    " select ipinyou_id,max(bid_click_kw) bid_click_kw,max(site_open_kw) site_open_kw," +
-                            " max(site_search_kw) site_search_kw,max(site_click_kw) site_click_kw, max(site_lead_kw) site_lead_kw" +
-                            " from (" +
-                            " select ipinyou_id," +
-                            " case when cass_log_type_name='bid-click' then cass_kw_name else 0 end bid_click_kw," +
-                            " case when cass_log_type_name='site-open' then cass_kw_name else 0 end site_open_kw," +
-                            " case when cass_log_type_name='site-search' then cass_kw_name else 0 end site_search_kw," +
-                            " case when cass_log_type_name='site-click' then cass_kw_name else 0 end site_click_kw," +
-                            " case when cass_log_type_name='site-lead' then cass_kw_name else 0 end site_lead_kw" +
-                            " from unpivoted_table) x" +
-                            " group by ipinyou_id");
+            DataFrame df = sqlContext.sql(" select ipinyou_id,max(bid_click_kw) bid_click_kw,max(site_open_kw) site_open_kw,"
+                    + " max(site_search_kw) site_search_kw,max(site_click_kw) site_click_kw, max(site_lead_kw) site_lead_kw" + " from ("
+                    + " select ipinyou_id," + " case when cass_log_type_name='bid-click' then cass_kw_name else 0 end bid_click_kw,"
+                    + " case when cass_log_type_name='site-open' then cass_kw_name else 0 end site_open_kw,"
+                    + " case when cass_log_type_name='site-search' then cass_kw_name else 0 end site_search_kw,"
+                    + " case when cass_log_type_name='site-click' then cass_kw_name else 0 end site_click_kw,"
+                    + " case when cass_log_type_name='site-lead' then cass_kw_name else 0 end site_lead_kw" + " from unpivoted_table) x"
+                    + " group by ipinyou_id");
 
+            df.persist();
             df.show();
 
             DataFrame forPredictDf = searchCompatibleDf
                     .join(df, searchCompatibleDf.col("ipinyou_id").equalTo(df.col("ipinyou_id")), "leftouter")
-                    .drop(df.col("ipinyou_id"))
-                    ;
+                    .select(searchCompatibleDf.col("*"), df.col("bid_click_kw"), df.col("site_open_kw"), df.col("site_search_kw"),
+                            df.col("site_click_kw"), df.col("site_lead_kw"));
 
             log.debug("Data for prediction");
+            forPredictDf.persist();
             forPredictDf.show();
 
-//            if (searchCompatibleDf.count() > 0) {
-//                log.info("Load to Cassandra");
-//                searchCompatibleDf
-//                        .write()
-//                        .format("org.apache.spark.sql.cassandra")
-//                        .options(cassandraParams)
-//                        .mode(SaveMode.Overwrite)
-//                        .save();
-//            }
+            // Score data
+            dlModel.score(h2oContext.asH2OFrame(forPredictDf));
+
+            // if (searchCompatibleDf.count() > 0) {
+            // log.info("Load to Cassandra");
+            // searchCompatibleDf
+            // .write()
+            // .format("org.apache.spark.sql.cassandra")
+            // .options(cassandraParams)
+            // .mode(SaveMode.Overwrite)
+            // .save();
+            // }
+            // log.info(String.format("Saving to ES %s", esIndexName));
+            // JavaEsSpark.saveJsonToEs(forPredictDf.toJSON().toJavaRDD(), esIndexName);
 
             return null;
         });
