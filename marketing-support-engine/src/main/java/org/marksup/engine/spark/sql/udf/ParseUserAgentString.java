@@ -7,10 +7,10 @@ import java.io.Serializable;
 
 import org.marksup.engine.utils.MapperConstants;
 
-public class ParseUserAgentString extends AbstractFunction1<String, String>implements Serializable {
+public class ParseUserAgentString extends AbstractFunction1<String, Object> implements Serializable {
 
     private static final long serialVersionUID = -1474997808699658439L;
-    private static final String DFLT_UNKNOWN = "Unknown";
+    private static final String DFLT_NULL = null;
 
     private final MapperConstants.SchemaFields userAgentComponent;
 
@@ -19,41 +19,38 @@ public class ParseUserAgentString extends AbstractFunction1<String, String>imple
     }
 
     @Override
-    public String apply(String value) {
+    public Object apply(String value) {
         final UserAgent userAgent = UserAgent.parseUserAgentString(value);
         switch (userAgentComponent) {
         case UA_BROWSER:
-            return String.valueOf(userAgent.getBrowser() != null ? userAgent.getBrowser() : DFLT_UNKNOWN);
+            return userAgent.getBrowser() != null ? String.valueOf(userAgent.getBrowser()) : DFLT_NULL;
         case UA_BROWSER_TYPE:
-            return String.valueOf(userAgent.getBrowser() != null ? userAgent.getBrowser().getBrowserType() : DFLT_UNKNOWN);
+            return userAgent.getBrowser() != null ? String.valueOf(userAgent.getBrowser().getBrowserType()) : DFLT_NULL;
         case UA_BROWSER_MANUFACTURER:
-            return String.valueOf(userAgent.getBrowser() != null ? userAgent.getBrowser().getManufacturer() : DFLT_UNKNOWN);
+            return userAgent.getBrowser() != null ? String.valueOf(userAgent.getBrowser().getManufacturer()) : DFLT_NULL;
         case UA_BROWSER_GROUP:
-            return String.valueOf(userAgent.getBrowser() != null ? userAgent.getBrowser().getGroup() : DFLT_UNKNOWN);
+            return userAgent.getBrowser() != null ? String.valueOf(userAgent.getBrowser().getGroup()) : DFLT_NULL;
         case UA_BROWSER_RENDERING_ENGINE:
-            return String.valueOf(userAgent.getBrowser() != null ? userAgent.getBrowser().getRenderingEngine() : DFLT_UNKNOWN);
-
+            return userAgent.getBrowser() != null ? String.valueOf(userAgent.getBrowser().getRenderingEngine()) : DFLT_NULL;
         case UA_BROWSERVERSION:
-            return String.valueOf(userAgent.getBrowserVersion() != null ? userAgent.getBrowserVersion() : DFLT_UNKNOWN);
+            //TODO changed in H2O model to String
+            return userAgent.getBrowserVersion() != null ? Double.parseDouble(userAgent.getBrowserVersion().toString()) : DFLT_NULL;
         case UA_BROWSERVERSION_MINOR:
-            return String.valueOf(userAgent.getBrowserVersion() != null ? userAgent.getBrowserVersion().getMinorVersion() : DFLT_UNKNOWN);
+            return userAgent.getBrowserVersion() != null ? Integer.parseInt(userAgent.getBrowserVersion().getMinorVersion()) : DFLT_NULL;
         case UA_BROWSERVERSION_MAJOR:
-            return String.valueOf(userAgent.getBrowserVersion() != null ? userAgent.getBrowserVersion().getMajorVersion() : DFLT_UNKNOWN);
-
+            return userAgent.getBrowserVersion() != null ? Integer.parseInt(userAgent.getBrowserVersion().getMajorVersion()) : DFLT_NULL;
         case UA_ID:
-            return String.valueOf(userAgent.getId());
-
+            return userAgent.getId();
         case UA_OS:
-            return String.valueOf(userAgent.getOperatingSystem() != null ? userAgent.getOperatingSystem() : DFLT_UNKNOWN);
+            return userAgent.getOperatingSystem() != null ? String.valueOf(userAgent.getOperatingSystem()) : DFLT_NULL;
         case UA_OS_NAME:
-            return String.valueOf(userAgent.getOperatingSystem() != null ? userAgent.getOperatingSystem().getName() : DFLT_UNKNOWN);
+            return userAgent.getOperatingSystem() != null ? String.valueOf(userAgent.getOperatingSystem().getName()) : DFLT_NULL;
         case UA_OS_DEVICE:
-            return String.valueOf(userAgent.getOperatingSystem() != null ? userAgent.getOperatingSystem().getDeviceType() : DFLT_UNKNOWN);
+            return userAgent.getOperatingSystem() != null ? String.valueOf(userAgent.getOperatingSystem().getDeviceType()) : DFLT_NULL;
         case UA_OS_GROUP:
-            return String.valueOf(userAgent.getOperatingSystem() != null ? userAgent.getOperatingSystem().getGroup() : DFLT_UNKNOWN);
+            return userAgent.getOperatingSystem() != null ? String.valueOf(userAgent.getOperatingSystem().getGroup()) : DFLT_NULL;
         case UA_OS_MANUFACTURER:
-            return String.valueOf(userAgent.getOperatingSystem() != null ? userAgent.getOperatingSystem().getManufacturer() : DFLT_UNKNOWN);
-
+            return userAgent.getOperatingSystem() != null ? String.valueOf(userAgent.getOperatingSystem().getManufacturer()) : DFLT_NULL;
         default:
             return null;
         }

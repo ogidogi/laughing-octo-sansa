@@ -70,7 +70,6 @@ import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.stream.Collectors;
 
 import org.apache.commons.configuration.CompositeConfiguration;
 import org.apache.commons.configuration.ConfigurationException;
@@ -84,9 +83,7 @@ import org.apache.spark.h2o.H2OContext;
 import org.apache.spark.sql.DataFrame;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SQLContext;
-import org.apache.spark.sql.catalyst.expressions.GenericRow;
 import org.apache.spark.sql.types.DataTypes;
-import org.apache.spark.sql.types.StructType;
 import org.apache.spark.streaming.Durations;
 import org.apache.spark.streaming.api.java.JavaPairInputDStream;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
@@ -97,6 +94,7 @@ import org.marksup.engine.spark.sql.udf.ParseUserAgentString;
 
 import hex.Model;
 import kafka.serializer.StringDecoder;
+import water.fvec.Frame;
 
 public class PredictionFlow {
     private static final Logger log = Logger.getLogger(PredictionFlow.class);
@@ -204,18 +202,13 @@ public class PredictionFlow {
 
         messages.foreachRDD(rdd -> {
             SQLContext sqlContext = SQLContext.getOrCreate(rdd.context());
-            JavaRDD<Row> rowRdd = rdd.filter(x -> !x._2().isEmpty()).map(x -> new GenericRow(x._2().split("\t")));
+            JavaRDD<Row> rowRdd = rdd.filter(x -> !x._2().isEmpty()).map(x -> BID_LOG_SCHEMA.textToRow(x._2(), "\t"));
 
             if (rowRdd.isEmpty()) {
                 return null;
             }
 
-            // Workaround since there is no automatic type conversion between Row and DF
-            StructType kafkaStrSchema = DataTypes.createStructType(Arrays.stream(BID_LOG_SCHEMA.getSchema().fields())
-                    .map(field -> DataTypes.createStructField(field.name(), DataTypes.StringType, field.nullable()))
-                    .collect(Collectors.toList()));
-
-            DataFrame kafkaDf = sqlContext.createDataFrame(rowRdd, kafkaStrSchema);
+            DataFrame kafkaDf = sqlContext.createDataFrame(rowRdd.rdd(), BID_LOG_SCHEMA.getSchema(), true);
             // kafkaDf.show();
 
             log.info("Join with dictionaries");
@@ -259,39 +252,42 @@ public class PredictionFlow {
                             coalesce(joinedKafkaDf.col(KEYWORD_NAME.getName()), joinedKafkaDf.col(USER_TAGS.getName()))
                                     .alias(KEYWORD_NAME.getName()))
                     .withColumn(UA_BROWSER.getName(),
-                            callUDF(new ParseUserAgentString(UA_BROWSER), DataTypes.StringType, kafkaDf.col(USER_AGENT.getName())))
+                            callUDF(new ParseUserAgentString(UA_BROWSER), UA_BROWSER.getStructField().dataType(),
+                                    kafkaDf.col(USER_AGENT.getName())))
                     .withColumn(UA_BROWSER_GROUP.getName(),
-                            callUDF(new ParseUserAgentString(UA_BROWSER_GROUP), DataTypes.StringType, kafkaDf.col(USER_AGENT.getName())))
+                            callUDF(new ParseUserAgentString(UA_BROWSER_GROUP), UA_BROWSER_GROUP.getStructField().dataType(),
+                                    kafkaDf.col(USER_AGENT.getName())))
                     .withColumn(UA_BROWSER_MANUFACTURER.getName(),
-                            callUDF(new ParseUserAgentString(UA_BROWSER_MANUFACTURER), DataTypes.StringType,
+                            callUDF(new ParseUserAgentString(UA_BROWSER_MANUFACTURER), UA_BROWSER_MANUFACTURER.getStructField().dataType(),
                                     kafkaDf.col(USER_AGENT.getName())))
                     .withColumn(UA_BROWSER_RENDERING_ENGINE.getName(),
-                            callUDF(new ParseUserAgentString(UA_BROWSER_RENDERING_ENGINE), DataTypes.StringType,
-                                    kafkaDf.col(USER_AGENT.getName())))
+                            callUDF(new ParseUserAgentString(UA_BROWSER_RENDERING_ENGINE),
+                                    UA_BROWSER_RENDERING_ENGINE.getStructField().dataType(), kafkaDf.col(USER_AGENT.getName())))
                     .withColumn(UA_BROWSERVERSION.getName(),
-                            callUDF(new ParseUserAgentString(UA_BROWSERVERSION), DataTypes.StringType, kafkaDf.col(USER_AGENT.getName())))
+                            callUDF(new ParseUserAgentString(UA_BROWSERVERSION), UA_BROWSERVERSION.getStructField().dataType(),
+                                    kafkaDf.col(USER_AGENT.getName())))
                     .withColumn(UA_BROWSERVERSION_MINOR.getName(),
-                            callUDF(new ParseUserAgentString(UA_BROWSERVERSION_MINOR), DataTypes.StringType,
+                            callUDF(new ParseUserAgentString(UA_BROWSERVERSION_MINOR), UA_BROWSERVERSION_MINOR.getStructField().dataType(),
                                     kafkaDf.col(USER_AGENT.getName())))
                     .withColumn(UA_BROWSERVERSION_MAJOR.getName(),
-                            callUDF(new ParseUserAgentString(UA_BROWSERVERSION_MAJOR), DataTypes.StringType,
+                            callUDF(new ParseUserAgentString(UA_BROWSERVERSION_MAJOR), UA_BROWSERVERSION_MAJOR.getStructField().dataType(),
                                     kafkaDf.col(USER_AGENT.getName())))
                     .withColumn(UA_ID.getName(),
-                            callUDF(new ParseUserAgentString(UA_ID), DataTypes.StringType, kafkaDf.col(USER_AGENT.getName())))
+                            callUDF(new ParseUserAgentString(UA_ID), UA_ID.getStructField().dataType(), kafkaDf.col(USER_AGENT.getName())))
                     .withColumn(UA_OS.getName(),
-                            callUDF(new ParseUserAgentString(UA_OS), DataTypes.StringType, kafkaDf.col(USER_AGENT.getName())))
+                            callUDF(new ParseUserAgentString(UA_OS), UA_OS.getStructField().dataType(), kafkaDf.col(USER_AGENT.getName())))
                     .withColumn(UA_OS_NAME.getName(),
-                            callUDF(new ParseUserAgentString(UA_OS_NAME), DataTypes.StringType, kafkaDf.col(USER_AGENT.getName())))
+                            callUDF(new ParseUserAgentString(UA_OS_NAME), UA_OS_NAME.getStructField().dataType(),
+                                    kafkaDf.col(USER_AGENT.getName())))
                     .withColumn(UA_OS_DEVICE.getName(),
-                            callUDF(new ParseUserAgentString(UA_OS_DEVICE), DataTypes.StringType, kafkaDf.col(USER_AGENT.getName())))
+                            callUDF(new ParseUserAgentString(UA_OS_DEVICE), UA_OS_DEVICE.getStructField().dataType(),
+                                    kafkaDf.col(USER_AGENT.getName())))
                     .withColumn(UA_OS_GROUP.getName(),
-                            callUDF(new ParseUserAgentString(UA_OS_GROUP), DataTypes.StringType, kafkaDf.col(USER_AGENT.getName())))
-                    .withColumn(UA_OS_MANUFACTURER.getName(),
-                            callUDF(new ParseUserAgentString(UA_OS_MANUFACTURER), DataTypes.StringType, kafkaDf.col(USER_AGENT.getName())));
-
+                            callUDF(new ParseUserAgentString(UA_OS_GROUP), UA_OS_GROUP.getStructField().dataType(),
+                                    kafkaDf.col(USER_AGENT.getName())))
+                    .withColumn(UA_OS_MANUFACTURER.getName(), callUDF(new ParseUserAgentString(UA_OS_MANUFACTURER),
+                            UA_OS_MANUFACTURER.getStructField().dataType(), kafkaDf.col(USER_AGENT.getName())));
             searchCompatibleDf.persist();
-            log.debug("Parsed DF");
-            searchCompatibleDf.show();
 
             log.debug("Joined DF");
             DataFrame sqlTblDf = searchCompatibleDf
@@ -325,9 +321,10 @@ public class PredictionFlow {
             log.debug("Data for prediction");
             forPredictDf.persist();
             forPredictDf.show();
-
+            forPredictDf.printSchema();
+            
             // Score data
-            dlModel.score(h2oContext.asH2OFrame(forPredictDf));
+            Frame predictedtDf = dlModel.score(h2oContext.asH2OFrame(forPredictDf));
 
             // if (searchCompatibleDf.count() > 0) {
             // log.info("Load to Cassandra");
