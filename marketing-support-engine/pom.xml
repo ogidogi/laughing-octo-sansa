@@ -147,6 +147,16 @@
 
 		<!-- Sparkling Water -->
 		<dependency>
+		    <groupId>ai.h2o</groupId>
+		    <artifactId>h2o-core</artifactId>
+		    <version>3.2.0.9</version>
+		</dependency>
+		<dependency>
+		    <groupId>ai.h2o</groupId>
+		    <artifactId>h2o-algos</artifactId>
+		    <version>3.2.0.9</version>
+		</dependency>
+		<dependency>
 			<groupId>ai.h2o</groupId>
 			<artifactId>sparkling-water-core_2.10</artifactId>
 			<version>${sparkling.version}</version>
@@ -161,12 +171,12 @@
 		<dependency>
 			<groupId>com.restfb</groupId>
 			<artifactId>restfb</artifactId>
-			<version>1.14.1</version>
+			<version>1.16.0</version>
 		</dependency>
 		<dependency>
 			<groupId>eu.bitwalker</groupId>
 			<artifactId>UserAgentUtils</artifactId>
-			<version>1.17</version>
+			<version>1.18</version>
 		</dependency>
 	</dependencies>
 
