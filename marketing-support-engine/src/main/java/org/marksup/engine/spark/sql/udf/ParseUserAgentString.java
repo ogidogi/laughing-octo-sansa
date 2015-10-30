@@ -34,7 +34,16 @@ public class ParseUserAgentString extends AbstractFunction1<String, Object> impl
             return userAgent.getBrowser() != null ? String.valueOf(userAgent.getBrowser().getRenderingEngine()) : DFLT_NULL;
         case UA_BROWSERVERSION:
             //TODO changed in H2O model to String
-            return userAgent.getBrowserVersion() != null ? Double.parseDouble(userAgent.getBrowserVersion().toString()) : DFLT_NULL;
+            if (userAgent.getBrowserVersion() != null) {
+                try {
+                    return Double.parseDouble(userAgent.getBrowserVersion().toString());
+                } catch (IllegalArgumentException e) {
+                    return null;
+                }
+            } else {
+                return null;
+            }
+//            return userAgent.getBrowserVersion() != null ? Double.parseDouble(userAgent.getBrowserVersion().toString()) : DFLT_NULL;
         case UA_BROWSERVERSION_MINOR:
             return userAgent.getBrowserVersion() != null ? Integer.parseInt(userAgent.getBrowserVersion().getMinorVersion()) : DFLT_NULL;
         case UA_BROWSERVERSION_MAJOR:

@@ -6,7 +6,8 @@ import kafka.producer.ProducerConfig;
 import org.apache.commons.configuration.CompositeConfiguration;
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.configuration.PropertiesConfiguration;
-import twitter4j.internal.logging.Logger;
+import org.apache.log4j.Level;
+import org.apache.log4j.Logger;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
@@ -15,9 +16,10 @@ import java.util.Properties;
 import java.util.Random;
 
 public class KafkaRtbProducer {
-    static Logger log = Logger.getLogger(KafkaRtbProducer.class);
+    private static final Logger log = Logger.getLogger(KafkaRtbProducer.class);
 
     public static void main(String[] args) throws ConfigurationException, InterruptedException {
+        log.setLevel(Level.DEBUG);
         Random rnd = new Random();
 
         CompositeConfiguration conf = new CompositeConfiguration();
@@ -32,7 +34,7 @@ public class KafkaRtbProducer {
         ProducerConfig config = new ProducerConfig(props);
         Producer<String, String> producer = new Producer<String, String>(config);
 
-        try (BufferedReader br = new BufferedReader(new FileReader("/media/sf_Download/ipinyou/window/clk.20130607.txt"))) {
+        try (BufferedReader br = new BufferedReader(new FileReader("/media/sf_Download/data/mors/new/site-click.20130606-aa.txt"))) {
 
             String currentLine;
             int numLines = rnd.nextInt(10) + 1;
