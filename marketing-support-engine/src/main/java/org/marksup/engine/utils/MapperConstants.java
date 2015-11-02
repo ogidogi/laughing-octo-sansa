@@ -1,53 +1,6 @@
 package org.marksup.engine.utils;
 
-import static org.marksup.engine.utils.MapperConstants.SchemaFields.ADVERTISER_ID;
-import static org.marksup.engine.utils.MapperConstants.SchemaFields.AD_EXCH_DESC;
-import static org.marksup.engine.utils.MapperConstants.SchemaFields.AD_EXCH_ID;
-import static org.marksup.engine.utils.MapperConstants.SchemaFields.AD_EXCH_NAME;
-import static org.marksup.engine.utils.MapperConstants.SchemaFields.AD_SLOT_FLOOR_PRICE;
-import static org.marksup.engine.utils.MapperConstants.SchemaFields.AD_SLOT_FORMAT;
-import static org.marksup.engine.utils.MapperConstants.SchemaFields.AD_SLOT_HEIGHT;
-import static org.marksup.engine.utils.MapperConstants.SchemaFields.AD_SLOT_ID;
-import static org.marksup.engine.utils.MapperConstants.SchemaFields.AD_SLOT_VISIBILITY;
-import static org.marksup.engine.utils.MapperConstants.SchemaFields.AD_SLOT_WIDTH;
-import static org.marksup.engine.utils.MapperConstants.SchemaFields.ANONYMOUS_URL_ID;
-import static org.marksup.engine.utils.MapperConstants.SchemaFields.BIDDING_PRICE;
-import static org.marksup.engine.utils.MapperConstants.SchemaFields.BID_ID;
-import static org.marksup.engine.utils.MapperConstants.SchemaFields.CITY_AREA;
-import static org.marksup.engine.utils.MapperConstants.SchemaFields.CITY_DENSITY;
-import static org.marksup.engine.utils.MapperConstants.SchemaFields.CITY_ID;
-import static org.marksup.engine.utils.MapperConstants.SchemaFields.CITY_LATITUDE;
-import static org.marksup.engine.utils.MapperConstants.SchemaFields.CITY_LONGITUDE;
-import static org.marksup.engine.utils.MapperConstants.SchemaFields.CITY_NAME;
-import static org.marksup.engine.utils.MapperConstants.SchemaFields.CITY_POPULATION;
-import static org.marksup.engine.utils.MapperConstants.SchemaFields.CREATIVE_ID;
-import static org.marksup.engine.utils.MapperConstants.SchemaFields.DOMAIN;
-import static org.marksup.engine.utils.MapperConstants.SchemaFields.IP;
-import static org.marksup.engine.utils.MapperConstants.SchemaFields.IPINYOU_ID;
-import static org.marksup.engine.utils.MapperConstants.SchemaFields.KEYWORD_ID;
-import static org.marksup.engine.utils.MapperConstants.SchemaFields.KEYWORD_NAME;
-import static org.marksup.engine.utils.MapperConstants.SchemaFields.KEY_PAGE_URL;
-import static org.marksup.engine.utils.MapperConstants.SchemaFields.LOG_TYPE_ID;
-import static org.marksup.engine.utils.MapperConstants.SchemaFields.LOG_TYPE_NAME;
-import static org.marksup.engine.utils.MapperConstants.SchemaFields.PAYING_PRICE;
-import static org.marksup.engine.utils.MapperConstants.SchemaFields.PROB;
-import static org.marksup.engine.utils.MapperConstants.SchemaFields.REGION;
-import static org.marksup.engine.utils.MapperConstants.SchemaFields.SITE_PAGE_ID;
-import static org.marksup.engine.utils.MapperConstants.SchemaFields.SITE_PAGE_TAG;
-import static org.marksup.engine.utils.MapperConstants.SchemaFields.SITE_PAGE_URL;
-import static org.marksup.engine.utils.MapperConstants.SchemaFields.STATE_GSP;
-import static org.marksup.engine.utils.MapperConstants.SchemaFields.STATE_ID;
-import static org.marksup.engine.utils.MapperConstants.SchemaFields.STATE_NAME;
-import static org.marksup.engine.utils.MapperConstants.SchemaFields.STATE_POPULATION;
-import static org.marksup.engine.utils.MapperConstants.SchemaFields.TIMESTAMP;
-import static org.marksup.engine.utils.MapperConstants.SchemaFields.URL;
-import static org.marksup.engine.utils.MapperConstants.SchemaFields.USER_AGENT;
-import static org.marksup.engine.utils.MapperConstants.SchemaFields.USER_PROFILE_TAG_DEST_URL;
-import static org.marksup.engine.utils.MapperConstants.SchemaFields.USER_PROFILE_TAG_ID;
-import static org.marksup.engine.utils.MapperConstants.SchemaFields.USER_PROFILE_TAG_MATCH_TYPE;
-import static org.marksup.engine.utils.MapperConstants.SchemaFields.USER_PROFILE_TAG_PRICE_TYPE;
-import static org.marksup.engine.utils.MapperConstants.SchemaFields.USER_PROFILE_TAG_VALUE;
-import static org.marksup.engine.utils.MapperConstants.SchemaFields.USER_TAGS;
+import static org.marksup.engine.utils.MapperConstants.SchemaFields.*;
 
 import java.nio.charset.Charset;
 import java.sql.Timestamp;
@@ -63,7 +16,11 @@ import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
 
 public class MapperConstants {
+
     public enum SchemaFields {
+        // @formatter:off
+        ALL_FIELDS("*", DataTypes.NullType, true),
+        
         BID_ID("bid_id", DataTypes.StringType, true),
         TIMESTAMP("timestamp", DataTypes.StringType, true),
         IPINYOU_ID("ipinyou_id", DataTypes.StringType, true),
@@ -76,6 +33,7 @@ public class MapperConstants {
         AD_SLOT_ID("ad_slot_id", DataTypes.StringType, true),
         AD_SLOT_WIDTH("ad_slot_width", DataTypes.IntegerType, true),
         AD_SLOT_HEIGHT("ad_slot_height", DataTypes.IntegerType, true),
+        AD_SLOT_SIZE("ad_slot_size", DataTypes.StringType, true),
         AD_SLOT_VISIBILITY("ad_slot_visibility", DataTypes.IntegerType, true),
         AD_SLOT_FORMAT("ad_slot_format", DataTypes.IntegerType, true),
         AD_SLOT_FLOOR_PRICE("ad_slot_floor_price", DataTypes.LongType, true),
@@ -140,8 +98,19 @@ public class MapperConstants {
         USER_PROFILE_TAG_MATCH_TYPE("user_profile_tag_match_type", DataTypes.StringType, true),
         USER_PROFILE_TAG_DEST_URL("user_profile_tag_dest_url", DataTypes.StringType, true),
 
-        PROB("prob", DataTypes.StringType, true);
+        BID_CLICK_KW("bid_click_kw", DataTypes.createArrayType(DataTypes.StringType), true),
+        SITE_OPEN_KW("site_open_kw", DataTypes.createArrayType(DataTypes.StringType), true),
+        SITE_SEARCH_KW("site_search_kw", DataTypes.createArrayType(DataTypes.StringType), true),
+        SITE_CLICK_KW("site_click_kw", DataTypes.createArrayType(DataTypes.StringType), true),
+        SITE_LEAD_KW("site_lead_kw", DataTypes.createArrayType(DataTypes.StringType), true),
+        
+        PREDICT("predict", DataTypes.StringType, true),
+        FALSE("FALSE", DataTypes.DoubleType, true),
+        TRUE("TRUE", DataTypes.DoubleType, true),
+        FALSE_PROB("false_prob", DataTypes.DoubleType, true),
+        TRUE_PROB("true_prob", DataTypes.DoubleType, true);
 
+        // @formatter:on
         private final StructField structField;
 
         SchemaFields(String fieldName, DataType fieldType, Boolean isNullable) {
@@ -158,25 +127,26 @@ public class MapperConstants {
     }
 
     public enum MappingSchemas {
+        // @formatter:off
         BID_SCHEMA(BID_ID, TIMESTAMP, LOG_TYPE_ID, IPINYOU_ID, USER_AGENT, IP, REGION, CITY_ID, AD_EXCH_ID, DOMAIN, URL, ANONYMOUS_URL_ID,
                 AD_SLOT_ID, AD_SLOT_WIDTH, AD_SLOT_HEIGHT, AD_SLOT_VISIBILITY, AD_SLOT_FORMAT, AD_SLOT_FLOOR_PRICE, CREATIVE_ID,
                 BIDDING_PRICE, PAYING_PRICE, KEY_PAGE_URL, ADVERTISER_ID, USER_TAGS),
-        BID_LOG_SCHEMA(BID_ID, TIMESTAMP, IPINYOU_ID, USER_AGENT, IP, REGION, CITY_ID, AD_EXCH_ID, DOMAIN, URL, ANONYMOUS_URL_ID, AD_SLOT_ID, AD_SLOT_WIDTH,
-                AD_SLOT_HEIGHT, AD_SLOT_VISIBILITY, AD_SLOT_FORMAT, AD_SLOT_FLOOR_PRICE, CREATIVE_ID, BIDDING_PRICE, ADVERTISER_ID,
-                USER_TAGS, LOG_TYPE_ID, PAYING_PRICE),
-        // AD_EXCH_SCHEMA(AD_EXCH_ID, AD_EXCH_NAME, AD_EXCH_DESC),
+        BID_LOG_SCHEMA(BID_ID, TIMESTAMP, IPINYOU_ID, USER_AGENT, IP, REGION, CITY_ID, AD_EXCH_ID, DOMAIN, URL, ANONYMOUS_URL_ID, 
+                AD_SLOT_ID, AD_SLOT_WIDTH, AD_SLOT_HEIGHT, AD_SLOT_VISIBILITY, AD_SLOT_FORMAT, AD_SLOT_FLOOR_PRICE, CREATIVE_ID,
+                BIDDING_PRICE, ADVERTISER_ID, USER_TAGS, LOG_TYPE_ID, PAYING_PRICE),
         BID_LOG_NEW_SCHEMA(BID_ID, TIMESTAMP, IPINYOU_ID, USER_AGENT, IP, REGION, CITY_ID, AD_EXCH_ID, DOMAIN, URL,
-                ANONYMOUS_URL_ID, AD_SLOT_ID, AD_SLOT_WIDTH, AD_SLOT_HEIGHT, AD_SLOT_VISIBILITY, AD_SLOT_FORMAT,
-                AD_SLOT_FLOOR_PRICE, CREATIVE_ID, BIDDING_PRICE, ADVERTISER_ID, USER_TAGS, LOG_TYPE_ID, PAYING_PRICE,
-                PROB),
+                ANONYMOUS_URL_ID, AD_SLOT_ID, AD_SLOT_WIDTH, AD_SLOT_HEIGHT, AD_SLOT_VISIBILITY, AD_SLOT_FORMAT, AD_SLOT_FLOOR_PRICE, 
+                CREATIVE_ID, BIDDING_PRICE, ADVERTISER_ID, USER_TAGS, LOG_TYPE_ID, PAYING_PRICE, PREDICT),
         AD_EXCH_SCHEMA(AD_EXCH_ID, AD_EXCH_NAME, AD_EXCH_DESC),
         LOG_TYPE_SCHEMA(LOG_TYPE_ID, LOG_TYPE_NAME),
         CITY_SCHEMA(CITY_ID, CITY_NAME, STATE_ID, CITY_POPULATION, CITY_AREA, CITY_DENSITY, CITY_LATITUDE, CITY_LONGITUDE),
         STATE_SCHEMA(STATE_ID, STATE_NAME, STATE_POPULATION, STATE_GSP),
         KEYWORD_SCHEMA(KEYWORD_ID, KEYWORD_NAME),
         SITE_PAGES_SCHEMA(SITE_PAGE_ID, SITE_PAGE_URL, SITE_PAGE_TAG),
-        USER_PROFILE_TAGS_SCHEMA(USER_PROFILE_TAG_ID, USER_PROFILE_TAG_VALUE, USER_PROFILE_TAG_PRICE_TYPE, USER_PROFILE_TAG_MATCH_TYPE, USER_PROFILE_TAG_DEST_URL);
-
+        USER_PROFILE_TAGS_SCHEMA(USER_PROFILE_TAG_ID, USER_PROFILE_TAG_VALUE, USER_PROFILE_TAG_PRICE_TYPE, USER_PROFILE_TAG_MATCH_TYPE, 
+                USER_PROFILE_TAG_DEST_URL);
+        
+        // @formatter:on
         private final StructType schema;
         private final SchemaFields[] fields;
 

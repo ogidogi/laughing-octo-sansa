@@ -12,7 +12,7 @@
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <spark.version>1.5.1</spark.version>
-        <sparkling.version>1.5.3</sparkling.version>
+        <sparkling.version>1.5.2</sparkling.version>
 	</properties>
 
 	<build>
@@ -149,12 +149,12 @@
 		<dependency>
 		    <groupId>ai.h2o</groupId>
 		    <artifactId>h2o-core</artifactId>
-		    <version>3.2.0.9</version>
+		    <version>3.2.0.5</version>
 		</dependency>
 		<dependency>
 		    <groupId>ai.h2o</groupId>
 		    <artifactId>h2o-algos</artifactId>
-		    <version>3.2.0.9</version>
+		    <version>3.2.0.5</version>
 		</dependency>
 		<dependency>
 			<groupId>ai.h2o</groupId>
