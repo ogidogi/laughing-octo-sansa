@@ -41,9 +41,7 @@ import water.fvec.H2OFrame;
 public class PredictionFlow {
     private static final Logger log = Logger.getLogger(PredictionFlow.class);
     private static final String dictDir = "/media/sf_Download/data/mors/new_dicts";
-    // private static final String h2oModelFolder = "/mnt/data/workspace/laughing-octo-sansa/data/deep_learning_model3";
     private static final String h2oModelFolder = "/media/sf_Download/data/iPinYou/ipinyou.contest.dataset_unpacked/training2nd/model/dlmodel7";
-    // private static final SendOverSocket func = new SendOverSocket();
 
     public static void main(String[] args) throws ConfigurationException {
         PredictionFlow workflow = new PredictionFlow();
@@ -64,7 +62,7 @@ public class PredictionFlow {
     }
 
     public void run(CompositeConfiguration conf) throws IOException, ClassNotFoundException {
-        String esIndexName = "stream/bid";
+        String esIndexName = "stream/log";
 
         // Kafka props
         String kafkaBrokers = conf.getString("metadata.broker.list");
@@ -127,13 +125,7 @@ public class PredictionFlow {
                 .withColumnRenamed(SITE_PAGE_ID.getName(), KEYWORD_ID.getName())
                 .withColumnRenamed(SITE_PAGE_TAG.getName(), KEYWORD_NAME.getName());
 
-        log.debug("Load data from Cassandra");
-        DataFrame cassandraDf = sqlCon.read().format("org.apache.spark.sql.cassandra").options(cassandraParams).load();
-        // cassandraDf.show();
-        // cassandraDf.printSchema();
-
         log.debug("Persist prepared data");
-        cassandraDf.persist();
         adExchangeDf.persist();
         logTypeDf.persist();
         cityDf.persist();
@@ -166,8 +158,6 @@ public class PredictionFlow {
                     .join(keywordDf, kafkaDf.col(USER_TAGS.getName()).equalTo(keywordDf.col(KEYWORD_ID.getName())), "left")
                     .withColumn(COORDINATES.getName(), callUDF(new ParseCoordinates(), DataTypes.createArrayType(DataTypes.FloatType),
                             cityDf.col(CITY_LATITUDE.getName()), cityDf.col(CITY_LONGITUDE.getName())));
-            // joinedKafkaDf.show();
-            // joinedKafkaDf.printSchema();
 
             log.info("Store joined data in Cassandra");
             // joinedKafkaDf.write().format("org.apache.spark.sql.cassandra").options(cassandraParams).mode(SaveMode.Overwrite).save();
@@ -237,6 +227,10 @@ public class PredictionFlow {
                             UA_OS_MANUFACTURER.getStructField().dataType(), kafkaDf.col(USER_AGENT.getName())));
 
             log.debug("Joined and unpivote DataFrames");
+            log.debug("...Load data from Cassandra");
+            // TODO Apply filters
+            DataFrame cassandraDf = sqlCon.read().format("org.apache.spark.sql.cassandra").options(cassandraParams).load();
+
             DataFrame sqlTblDf = searchCompatibleDf
                     .join(cassandraDf, searchCompatibleDf.col(IPINYOU_ID.getName()).equalTo(cassandraDf.col(IPINYOU_ID.getName())),
                             "leftouter")
@@ -264,25 +258,31 @@ public class PredictionFlow {
                         + " from unpivoted_table) x"
                     + " group by ipinyou_id");
             // @formatter:on
-            // df.show();
-            // df.printSchema();
 
             DataFrame forPredictDf = searchCompatibleDf
                     .join(df, searchCompatibleDf.col(IPINYOU_ID.getName()).equalTo(df.col(IPINYOU_ID.getName())), "leftouter")
                     .select(searchCompatibleDf.col(ALL_FIELDS.getName()), df.col(BID_CLICK_KW.getName()), df.col(SITE_OPEN_KW.getName()),
                             df.col(SITE_SEARCH_KW.getName()), df.col(SITE_CLICK_KW.getName()), df.col(SITE_LEAD_KW.getName()));
             forPredictDf.show();
-            forPredictDf.printSchema();
 
             log.debug("Predict leads for DataFrame");
             H2OFrame forPredictFr = h2oContext.asH2OFrame(forPredictDf);
             DataFrame predictedDf = h2oContext.asDataFrame(h2oContext.asH2OFrame(forPredictFr.add(dlModel.score(forPredictFr))), sqlContext)
                     .withColumnRenamed(FALSE.getName(), FALSE_PROB.getName()).withColumnRenamed(TRUE.getName(), TRUE_PROB.getName());
             predictedDf.show();
-            predictedDf.printSchema();
 
-            log.debug(String.format("Saving to ES %s", esIndexName));
-            // JavaEsSpark.saveJsonToEs(predictedDf.toJSON().toJavaRDD(), esIndexName);
+            if (predictedDf.count() > 0) {
+                log.info("Load to Cassandra");
+                predictedDf
+                        .write()
+                        .format("org.apache.spark.sql.cassandra")
+                        .options(cassandraParams)
+                        .mode(SaveMode.Append)
+                        .save();
+
+                log.debug(String.format("Saving to ES %s", esIndexName));
+                JavaEsSpark.saveJsonToEs(predictedDf.toJSON().toJavaRDD(), esIndexName);
+            }
 
             return null;
         });

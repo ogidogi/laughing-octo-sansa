@@ -18,6 +18,7 @@ import org.apache.spark.streaming.api.java.JavaPairInputDStream;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
 import org.apache.spark.streaming.kafka.KafkaUtils;
 import org.elasticsearch.spark.rdd.api.java.JavaEsSpark;
+import org.marksup.engine.spark.sql.udf.ParseAdSlotSize;
 import org.marksup.engine.spark.sql.udf.ParseCoordinates;
 import org.marksup.engine.spark.sql.udf.ParseUserAgentString;
 
@@ -81,7 +82,7 @@ public class KeywordAnalyzerFlow {
         // Create direct kafka stream with brokers and topics
         JavaPairInputDStream<String, String> messages = KafkaUtils.createDirectStream(jssc, String.class, String.class, StringDecoder.class,
                 StringDecoder.class, kafkaParams, topicsSet);
-//        messages.print();
+        messages.print();
 
         log.debug("Create Data Frames dictionaries from CSV");
         boolean isDictHeader = true;
@@ -133,7 +134,10 @@ public class KeywordAnalyzerFlow {
                     .join(stateDf, cityDf.col(STATE_ID.getName()).equalTo(stateDf.col(STATE_ID.getName())), "left")
                     .join(keywordDf, kafkaDf.col(USER_TAGS.getName()).equalTo(keywordDf.col(KEYWORD_ID.getName())), "left")
                     .withColumn(COORDINATES.getName(), callUDF(new ParseCoordinates(), DataTypes.createArrayType(DataTypes.FloatType),
-                            cityDf.col(CITY_LATITUDE.getName()), cityDf.col(CITY_LONGITUDE.getName())));
+                            cityDf.col(CITY_LATITUDE.getName()), cityDf.col(CITY_LONGITUDE.getName())))
+                    .withColumn(AD_SLOT_SIZE.getName(), callUDF(new ParseAdSlotSize(), AD_SLOT_SIZE.getStructField().dataType(),
+                            kafkaDf.col(AD_SLOT_WIDTH.getName()), kafkaDf.col(AD_SLOT_HEIGHT.getName())))
+            ;
 
             joinedKafkaDf.persist();
             joinedKafkaDf.show();
@@ -146,6 +150,7 @@ public class KeywordAnalyzerFlow {
                             joinedKafkaDf.col(IP.getName()), joinedKafkaDf.col(DOMAIN.getName()), joinedKafkaDf.col(URL.getName()),
                             joinedKafkaDf.col(ANONYMOUS_URL_ID.getName()), joinedKafkaDf.col(AD_SLOT_ID.getName()),
                             joinedKafkaDf.col(AD_SLOT_WIDTH.getName()), joinedKafkaDf.col(AD_SLOT_HEIGHT.getName()),
+                            joinedKafkaDf.col(AD_SLOT_SIZE.getName()),
                             joinedKafkaDf.col(AD_SLOT_VISIBILITY.getName()), joinedKafkaDf.col(AD_SLOT_FORMAT.getName()),
                             joinedKafkaDf.col(AD_SLOT_FLOOR_PRICE.getName()), joinedKafkaDf.col(CREATIVE_ID.getName()),
                             joinedKafkaDf.col(BIDDING_PRICE.getName()), joinedKafkaDf.col(ADVERTISER_ID.getName()),
