@@ -174,7 +174,7 @@ public class BiddingLogWorkflow {
                                 // KEYWORD
                                 coalesce(parsedBidLogDf.col(KEYWORD_NAME.getName()), parsedBidLogDf.col(USER_TAGS.getName()))
                                         .alias(KEYWORD_NAME.getName()),
-                                parsedBidLogDf.col(PROB.getName()))
+                                parsedBidLogDf.col(PREDICT.getName()))
                                         .withColumn(UA_BROWSER.getName(),
                                                 callUDF(new ParseUserAgentString(UA_BROWSER), DataTypes.StringType, bidLogDf.col(USER_AGENT.getName())))
                                         .withColumn(UA_BROWSER_GROUP.getName(),

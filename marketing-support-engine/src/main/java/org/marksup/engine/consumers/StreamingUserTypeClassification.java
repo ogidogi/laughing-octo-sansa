@@ -88,10 +88,10 @@ public class StreamingUserTypeClassification {
         try {
              final Tuple2<Model<?, ?, ?>, Word2VecModel> tModel = staticApp.buildModels(craigslistJobTitles, "initialModel");
 //            final Tuple2<Model<?, ?, ?>, Word2VecModel> tModel = importModels(h2oModelFolder, word2VecModelFolder, sp.sc());
-            final Model<?, ?, ?> tModel1 = importH2OModel(h2oModelFolder1);
+//            final Model<?, ?, ?> tModel1 = importH2OModel(h2oModelFolder1);
 
-//            final String modelId = tModel._1()._key.toString();
-//            final Word2VecModel w2vModel = tModel._2();
+            final String modelId = tModel._1()._key.toString();
+            final Word2VecModel w2vModel = tModel._2();
             // exportModels(tModel._1(), w2vModel, sp.sc());
 
             // Create direct kafka stream with brokers and topics
@@ -99,15 +99,15 @@ public class StreamingUserTypeClassification {
                     StringDecoder.class, StringDecoder.class, kafkaParams, topicsSet);
 
             // Classify incoming messages
-//            messages.map(mesage -> mesage._2()).filter(str -> !str.isEmpty())
-//                    .map(jobTitle -> staticApp.classify(jobTitle, modelId, w2vModel))
-//                    .map(pred -> new StringBuilder(100).append('\"').append(pred._1()).append("\" = ").append(Arrays.toString(pred._2())))
-//                    .print();
-
             messages.map(mesage -> mesage._2()).filter(str -> !str.isEmpty())
-                    .map(jobTitle -> tModel1.score(new H2OFrame(jobTitle)))
-                    .map(pred -> pred._names)
+                    .map(jobTitle -> staticApp.classify(jobTitle, modelId, w2vModel))
+                    .map(pred -> new StringBuilder(100).append('\"').append(pred._1()).append("\" = ").append(Arrays.toString(pred._2())))
                     .print();
+
+//            messages.map(mesage -> mesage._2()).filter(str -> !str.isEmpty())
+//                    .map(jobTitle -> tModel1.score(new H2OFrame(jobTitle)))
+//                    .map(pred -> pred._names)
+//                    .print();
 
             jssc.start();
             jssc.awaitTermination();
