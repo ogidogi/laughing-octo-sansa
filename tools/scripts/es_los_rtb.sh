@@ -34,7 +34,7 @@ curl -XDELETE 'http://localhost:9200/rtb/log_item/_query' -d '
         }
       }
   }'
-  
+
 // Drop doc by id
 curl -XDELETE 'http://localhost:9200/habrahabr/users/1'
 
@@ -50,6 +50,9 @@ curl -XPOST 'http://localhost:9200/_template/kw_template?pretty' -d '
     },
     "mappings" : {
         "log": {
+           "_timestamp": {
+                   "enabled": true
+           },
            "dynamic_templates": [{
                "template_user_agent": {
                    "match": "ua*",
@@ -71,9 +74,6 @@ curl -XPOST 'http://localhost:9200/_template/kw_template?pretty' -d '
                }
            }],
            "properties": {
-                "_timestamp": {
-                   "enabled": true
-               },
                "coordinates": {
                    "type": "geo_point"
                },
@@ -125,8 +125,8 @@ curl -XDELETE 'http://localhost:9200/keyword/log/_query' -d '
         }
       }
   }'
-  
-  
+
+
 // -----------------------
 // PREDICTION
 // -----------------------
@@ -138,6 +138,9 @@ curl -XPOST 'http://localhost:9200/_template/test_stream_template?pretty' -d '
     },
     "mappings" : {
         "log": {
+            "_timestamp": {
+                   "enabled": true
+            },
            "dynamic_templates": [{
                "template_user_agent": {
                    "match": "ua*",
@@ -159,9 +162,6 @@ curl -XPOST 'http://localhost:9200/_template/test_stream_template?pretty' -d '
                }
            }],
            "properties": {
-                "_timestamp": {
-                   "enabled": true
-               },
                "coordinates": {
                    "type": "geo_point"
                },
