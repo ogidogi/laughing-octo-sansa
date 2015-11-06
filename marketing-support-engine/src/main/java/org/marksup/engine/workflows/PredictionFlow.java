@@ -269,9 +269,19 @@ public class PredictionFlow {
             H2OFrame forPredictFr = h2oContext.asH2OFrame(forPredictDf);
             DataFrame predictedDf = h2oContext.asDataFrame(h2oContext.asH2OFrame(forPredictFr.add(dlModel.score(forPredictFr))), sqlContext)
                     .withColumnRenamed(FALSE.getName(), FALSE_PROB.getName()).withColumnRenamed(TRUE.getName(), TRUE_PROB.getName());
+            predictedDf.persist();
             predictedDf.show();
 
             if (predictedDf.count() > 0) {
+                // ------------------
+                // Save to ES
+                // ------------------
+                log.debug(String.format("Saving to ES %s", esIndexName));
+                JavaEsSpark.saveJsonToEs(predictedDf.toJSON().toJavaRDD(), esIndexName);
+
+                // ------------------
+                // Save to Cassandra
+                // ------------------
                 log.info("Load to Cassandra");
                 predictedDf
                         .write()
@@ -279,9 +289,6 @@ public class PredictionFlow {
                         .options(cassandraParams)
                         .mode(SaveMode.Append)
                         .save();
-
-                log.debug(String.format("Saving to ES %s", esIndexName));
-                JavaEsSpark.saveJsonToEs(predictedDf.toJSON().toJavaRDD(), esIndexName);
             }
 
             return null;
