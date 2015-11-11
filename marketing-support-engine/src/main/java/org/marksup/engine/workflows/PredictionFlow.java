@@ -20,10 +20,7 @@ import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.h2o.H2OContext;
-import org.apache.spark.sql.DataFrame;
-import org.apache.spark.sql.Row;
-import org.apache.spark.sql.SQLContext;
-import org.apache.spark.sql.SaveMode;
+import org.apache.spark.sql.*;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.streaming.Durations;
 import org.apache.spark.streaming.api.java.JavaPairInputDStream;
@@ -58,7 +55,6 @@ public class PredictionFlow {
         } catch (Exception e) {
             e.printStackTrace();
         }
-
     }
 
     public void run(CompositeConfiguration conf) throws IOException, ClassNotFoundException {
@@ -97,12 +93,18 @@ public class PredictionFlow {
         kafkaParams.put("metadata.broker.list", kafkaBrokers);
         kafkaParams.put("auto.offset.reset", fromOffset);
 
-        // Import model
+        // -----------------
+        // Import H2O model
+        // -----------------
         final Model<?, ?, ?> dlModel = StreamingUserTypeClassification.importH2OModel(h2oModelFolder);
 
+        // ---------------------------------------------------
         // Create direct kafka stream with brokers and topics
+        // ---------------------------------------------------
         JavaPairInputDStream<String, String> messages = KafkaUtils.createDirectStream(jssc, String.class, String.class, StringDecoder.class,
                 StringDecoder.class, kafkaParams, topicsSet);
+
+        // Print batch status with seconds
         messages.print();
 
         log.debug("Create DataFrames dictionaries from CSV");
@@ -145,8 +147,6 @@ public class PredictionFlow {
 
             log.debug("Create Kafka DataFrame");
             DataFrame kafkaDf = sqlContext.createDataFrame(rowRdd.rdd(), BID_LOG_SCHEMA.getSchema(), true);
-            // kafkaDf.show();
-            // kafkaDf.printSchema();
 
             log.info("Join Kafka DataFrame with dictionaries");
             DataFrame joinedKafkaDf = kafkaDf
@@ -159,7 +159,7 @@ public class PredictionFlow {
                     .withColumn(COORDINATES.getName(), callUDF(new ParseCoordinates(), DataTypes.createArrayType(DataTypes.FloatType),
                             cityDf.col(CITY_LATITUDE.getName()), cityDf.col(CITY_LONGITUDE.getName())));
 
-            log.info("Store joined data in Cassandra");
+            // log.info("Store joined data in Cassandra");
             // joinedKafkaDf.write().format("org.apache.spark.sql.cassandra").options(cassandraParams).mode(SaveMode.Overwrite).save();
 
             log.info("Parse UserAgent string for Kafka DataFrame");
@@ -226,10 +226,15 @@ public class PredictionFlow {
                     .withColumn(UA_OS_MANUFACTURER.getName(), callUDF(new ParseUserAgentString(UA_OS_MANUFACTURER),
                             UA_OS_MANUFACTURER.getStructField().dataType(), kafkaDf.col(USER_AGENT.getName())));
 
-            log.debug("Joined and unpivote DataFrames");
-            log.debug("...Load data from Cassandra");
-            // TODO Apply filters
-            DataFrame cassandraDf = sqlCon.read().format("org.apache.spark.sql.cassandra").options(cassandraParams).load();
+            log.debug("Load data from Cassandra");
+            DataFrame cassandraAllDf = sqlCon.read().format("org.apache.spark.sql.cassandra").options(cassandraParams).load();
+
+            // spark-cassandra driver is in charge of pushing down predicates
+            // so there's data set with particular IDs only
+            // https://github.com/datastax/spark-cassandra-connector/blob/master/doc/14_data_frames.md#pushing-down-clauses-to-cassandra
+            // INFO CassandraSourceRelation: filters: EqualTo(ipinyou_id,Z0zx1eKULtTNqsE)
+            // INFO CassandraSourceRelation: pushdown filters: ArrayBuffer(EqualTo(ipinyou_id,Z0zx1eKULtTNqsE))
+            DataFrame cassandraDf = cassandraAllDf.filter(cassandraAllDf.col(IPINYOU_ID.getName()).isin(searchCompatibleDf.javaRDD().map(x -> x.getAs(IPINYOU_ID.getName())).collect().toArray()));
 
             DataFrame sqlTblDf = searchCompatibleDf
                     .join(cassandraDf, searchCompatibleDf.col(IPINYOU_ID.getName()).equalTo(cassandraDf.col(IPINYOU_ID.getName())),
